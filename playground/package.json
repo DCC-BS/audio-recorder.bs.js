@@ -1,0 +1,14 @@
+{
+    "private": true,
+    "name": "audio-recorder.bs.js-playground",
+    "type": "module",
+    "scripts": {
+        "dev": "nuxi dev",
+        "build": "nuxi build",
+        "generate": "nuxi generate"
+    },
+    "dependencies": {
+        "nuxt": "^4.0.0",
+        "@nuxt/ui": "^3.3.0"
+    }
+}
