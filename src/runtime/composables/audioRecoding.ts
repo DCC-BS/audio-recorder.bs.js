@@ -1,9 +1,9 @@
 import { AudioStorageService } from "../services/audioStorage";
-import { useFFmpeg } from "../utils/audioConversion";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
+import { useFFmpeg } from "./audioConversion";
 
 export type Options = {
     onRecordingStarted: (stream: MediaStream) => void;
@@ -23,7 +23,7 @@ export function useAudioRecording(options: Options) {
     const elapsedTime = ref(0);
 
     const recordingInterval = ref<NodeJS.Timeout>();
-    const audioChunks = ref<Blob[]>([]);
+    const requestDataInterval = ref<NodeJS.Timeout>();
     const currentSession = ref<string>();
 
     const audioBlob = ref<Blob>();
@@ -31,10 +31,13 @@ export function useAudioRecording(options: Options) {
 
     const error = ref<string>();
 
+    let waitForAudioStoragePromise: Promise<void> | undefined;
+
     async function startRecording() {
         const availabilityResult = await checkMicrophoneAvailability();
         if (!availabilityResult.isAvailable) {
-            error.value = availabilityResult.message || 'Microphone not available';
+            error.value =
+                availabilityResult.message || "Microphone not available";
             isLoading.value = false;
             return;
         }
@@ -56,7 +59,9 @@ export function useAudioRecording(options: Options) {
             isRecording.value = true;
 
             // Create a new MediaRecorder instance
-            mediaRecorder.value = new MediaRecorder(stream);
+            mediaRecorder.value = new MediaRecorder(stream, {
+                mimeType: "audio/webm",
+            });
 
             // Setup for iOS background audio
             if ("mediaSession" in navigator) {
@@ -84,6 +89,12 @@ export function useAudioRecording(options: Options) {
                         elapsedTime.value,
                 );
             }, 1000);
+
+            requestDataInterval.value = setInterval(() => {
+                if (mediaRecorder.value && isRecording.value) {
+                    mediaRecorder.value.requestData();
+                }
+            }, 30000);
         } catch (e) {
             error.value = handleMicrophoneError(e as Error);
         }
@@ -100,39 +111,64 @@ export function useAudioRecording(options: Options) {
         event: BlobEvent,
     ): Promise<void> {
         if (event.data.size > 0) {
-            audioChunks.value.push(event.data);
+            let resolve: () => void = () => {};
+            let reject: (reason?: any) => void = () => {};
 
-            if (audioChunks.value.length > 100) {
+            waitForAudioStoragePromise = new Promise((res, rej) => {
+                resolve = res;
+                reject = rej;
+            });
+
+            try {
                 if (!currentSession.value) {
                     throw new Error("No active session for recording");
                 }
 
-                const webmBlob = new Blob(audioChunks.value, {
+                const webmBlob = new Blob([event.data], {
                     type: "audio/webm",
                 });
 
-                audioChunks.value.length = 0; // Clear chunks
                 const mp3Blob = await convertWebmToMp3(webmBlob, "part");
-                await audioStorage.appendBlobToSession(
+
+                await audioStorage.storeAudioBlob(
                     currentSession.value,
                     mp3Blob,
                 );
+
+                /**
+                 * From my calculations:
+                 * 0.4652631579 MB per minute
+                 * 27.91578947 MB per hour
+                 * on Firefox there is a maximum of 10240 MB storage per origin
+                 * => approx 366 hours of recordings
+                 */
+                navigator.storage.estimate().then((estimate) => {
+                    if (!estimate.quota || !estimate.usage) return;
+
+                    const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+                    const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
+                    console.debug(`Using ${usageMB} MB out of ${quotaMB} MB.`);
+                });
+            } catch (e) {
+                reject(e);
+            } finally {
+                resolve();
             }
         }
     }
 
     async function handleStopRecording(stream: MediaStream): Promise<void> {
-        // Create a blob from all chunks
-        const webmBlob = new Blob(audioChunks.value, { type: "audio/webm" });
+        await waitForAudioStoragePromise;
 
         if (!currentSession.value) {
             throw new Error("No active session for recording");
         }
 
         // Convert webm to mp3 format
-        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
-        const blobs = await audioStorage.getBlobs(currentSession.value);
-        blobs.push(mp3Blob);
+        // const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+        const blobs = await audioStorage.getSessionBlobs(currentSession.value);
+
+        console.log("Combining blobs:", blobs.length);
 
         const combinedBlob = await combineMp3Blobs(blobs);
 
@@ -151,7 +187,12 @@ export function useAudioRecording(options: Options) {
             recordingInterval.value = undefined;
         }
 
-        resetRecording();
+        if (requestDataInterval.value) {
+            clearInterval(requestDataInterval.value);
+            requestDataInterval.value = undefined;
+        }
+
+        audioStorage.deleteSession(currentSession.value);
     }
 
     function resetRecording(): void {

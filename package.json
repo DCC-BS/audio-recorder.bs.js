@@ -9,9 +9,9 @@
     "exports": {
         ".": {
             "types": "./dist/types.d.mts",
-            "style": "./dist/audio-recorder.bs.js.css",
             "import": "./dist/module.mjs",
-            "require": "./dist/module.mjs"
+            "require": "./dist/module.mjs",
+            "style": "./dist/main.css"
         }
     },
     "main": "./dist/module.mjs",
@@ -20,7 +20,7 @@
         "dist"
     ],
     "scripts": {
-        "prepack": "nuxt-module-build build",
+        "prepack": "nuxt-module-build build && cp src/main.css dist/",
         "generate": "nuxi generate",
         "dev": "nuxi dev playground",
         "dev:build": "nuxi build playground",
@@ -37,7 +37,8 @@
     "dependencies": {
         "@ffmpeg/ffmpeg": "^0.12.15",
         "@ffmpeg/util": "^0.12.2",
-        "@nuxt/kit": "^4.0.0"
+        "@nuxt/kit": "^4.0.0",
+        "dexie": "^4.2.0"
     },
     "devDependencies": {
         "@biomejs/biome": "latest",

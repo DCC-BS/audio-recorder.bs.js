@@ -1,9 +1,8 @@
-import {
-    defineNuxtModule,
-    createResolver,
-    addComponentsDir,
-    addImports,
-} from "@nuxt/kit";
+import { addComponentsDir, createResolver, defineNuxtModule } from "@nuxt/kit";
+
+export * from "./runtime/composables/audioConversion";
+export * from "./runtime/composables/audioRecoding";
+export * from "./runtime/utils/microphone";
 
 export default defineNuxtModule({
     meta: {

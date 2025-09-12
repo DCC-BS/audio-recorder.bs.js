@@ -6,7 +6,14 @@ import AudioVisualizer from "./AudioVisualizer.client.vue";
 const stream = ref<MediaStream>();
 const t = (key: string) => key; // Placeholder for translation function
 
-const { isRecording, startRecording, stopRecording, recordingTime, error } = useAudioRecording({
+const {
+    isRecording,
+    startRecording,
+    stopRecording,
+    recordingTime,
+    error,
+    audioUrl,
+} = useAudioRecording({
     onRecordingStarted: (s: MediaStream) => {
         stream.value = s;
     },
@@ -35,6 +42,13 @@ const formattedRecordingTime = computed(() => {
             <UButton v-if="isRecording" color="secondary" icon="i-lucide-square" @click="stopRecording" size="xl">
                 {{ t('audio.stopRecording') }}
             </UButton>
+        </div>
+
+        <div v-if="audioUrl" class="playback-section">
+            <audio :src="audioUrl" controls></audio>
+            <a :href="audioUrl" :download="`recording-${new Date().toISOString()}.webm`" class="download-link">
+                {{ t('audio.downloadRecording') }}
+            </a>
         </div>
 
         <div v-if="error" class="error-message">
