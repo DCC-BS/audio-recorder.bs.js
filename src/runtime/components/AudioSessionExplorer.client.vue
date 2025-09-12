@@ -6,7 +6,7 @@ import type { AudioSession } from "../services/db";
 
 const audioStorage = new AudioStorageService();
 
-const { combineMp3Blobs } = useFFmpeg();
+const { convertWebmToMp3 } = useFFmpeg();
 const sessions = ref<AudioSession[]>([]);
 const isLoading = ref(true);
 const deletingSessionId = ref<string | null>(null);
@@ -39,7 +39,8 @@ async function downloadAudio(sessionId: string): Promise<void> {
     downloadingSessionId.value = sessionId;
     try {
         const blobs = await audioStorage.getSessionBlobs(sessionId);
-        const mp3Blob = await combineMp3Blobs(blobs);
+        const webmBlob = new Blob(blobs, { type: "audio/webm" });
+        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
         const url = URL.createObjectURL(mp3Blob);
         const a = document.createElement("a");
         a.href = url;
