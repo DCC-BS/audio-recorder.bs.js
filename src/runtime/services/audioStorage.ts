@@ -37,14 +37,6 @@ export class AudioStorageService {
             throw new Error(`Session with ID ${sessionId} not found`);
         }
 
-        console.log("Storing blob:", {
-            id,
-            sessionId,
-            name,
-            size: blob.size,
-            type: blob.type,
-        });
-
         await db.transaction(
             "rw",
             db.audioBlobs,

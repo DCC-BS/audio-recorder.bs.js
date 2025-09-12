@@ -1,4 +1,4 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { FFmpeg, type LogEvent } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 
 function toBlob(data: Uint8Array | string, mimeType: string): Blob {
@@ -35,39 +35,12 @@ export function useFFmpeg() {
             const data = await ffmpeg.readFile(mp3FileName);
             return toBlob(data, "audio/mp3");
         } finally {
-            // await ffmpeg.deleteFile(webmFileName);
-            // await ffmpeg.deleteFile(mp3FileName);
-        }
-    }
-
-    async function combineMp3Blobs(blobs: Blob[]): Promise<Blob> {
-        try {
-            await loadPromise;
-
-            let files = "concat:";
-
-            for (const [index, blob] of blobs.entries()) {
-                await ffmpeg.writeFile(
-                    `part${index}.mp3`,
-                    await fetchFile(blob),
-                );
-                files += `part${index}.mp3|`;
-            }
-
-            await ffmpeg.exec(["-i", files, "-acodec", "copy", "output.mp3"]);
-            const data = await ffmpeg.readFile("output.mp3");
-
-            return toBlob(data, "audio/mp3");
-        } finally {
-            await ffmpeg.deleteFile("output.mp3");
-            for (const [index] of blobs.entries()) {
-                await ffmpeg.deleteFile(`part${index}.mp3`);
-            }
+            await ffmpeg.deleteFile(webmFileName);
+            await ffmpeg.deleteFile(mp3FileName);
         }
     }
 
     return {
         convertWebmToMp3,
-        combineMp3Blobs,
     };
 }

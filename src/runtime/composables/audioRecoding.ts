@@ -7,9 +7,19 @@ import { useFFmpeg } from "./audioConversion";
 
 export type Options = {
     onRecordingStarted: (stream: MediaStream) => void;
+    storeToDbInterval?: number;
+    mimeType?: string;
+};
+
+const optionsDefault: Options = {
+    onRecordingStarted: () => {},
+    storeToDbInterval: 30000, // 30000
+    mimeType: "audio/webm;codecs=opus",
 };
 
 export function useAudioRecording(options: Options) {
+    const opt = { ...optionsDefault, ...options };
+
     const { convertWebmToMp3, combineMp3Blobs } = useFFmpeg();
 
     const audioStorage = new AudioStorageService();
@@ -23,7 +33,6 @@ export function useAudioRecording(options: Options) {
     const elapsedTime = ref(0);
 
     const recordingInterval = ref<NodeJS.Timeout>();
-    const requestDataInterval = ref<NodeJS.Timeout>();
     const currentSession = ref<string>();
 
     const audioBlob = ref<Blob>();
@@ -52,7 +61,7 @@ export function useAudioRecording(options: Options) {
             );
 
             // Initialize visualization
-            options.onRecordingStarted(stream);
+            opt.onRecordingStarted(stream);
 
             // Update UI state
             isLoading.value = false;
@@ -60,7 +69,7 @@ export function useAudioRecording(options: Options) {
 
             // Create a new MediaRecorder instance
             mediaRecorder.value = new MediaRecorder(stream, {
-                mimeType: "audio/webm",
+                mimeType: options.mimeType,
             });
 
             // Setup for iOS background audio
@@ -78,7 +87,7 @@ export function useAudioRecording(options: Options) {
                 await handleStopRecording(stream);
 
             // Start recording
-            mediaRecorder.value.start();
+            mediaRecorder.value.start(opt.storeToDbInterval);
             recordingStartTime.value = Date.now();
             recordingTime.value = 0;
 
@@ -89,12 +98,6 @@ export function useAudioRecording(options: Options) {
                         elapsedTime.value,
                 );
             }, 1000);
-
-            requestDataInterval.value = setInterval(() => {
-                if (mediaRecorder.value && isRecording.value) {
-                    mediaRecorder.value.requestData();
-                }
-            }, 30000);
         } catch (e) {
             error.value = handleMicrophoneError(e as Error);
         }
@@ -124,23 +127,17 @@ export function useAudioRecording(options: Options) {
                     throw new Error("No active session for recording");
                 }
 
-                const webmBlob = new Blob([event.data], {
-                    type: "audio/webm",
-                });
-
-                const mp3Blob = await convertWebmToMp3(webmBlob, "part");
-
                 await audioStorage.storeAudioBlob(
                     currentSession.value,
-                    mp3Blob,
+                    event.data,
                 );
 
                 /**
-                 * From my calculations:
-                 * 0.4652631579 MB per minute
-                 * 27.91578947 MB per hour
+                 * From my measurements:
+                 * 0.32 MB average per minute
+                 * 19.26 MB average per hour
                  * on Firefox there is a maximum of 10240 MB storage per origin
-                 * => approx 366 hours of recordings
+                 * => approx 531 hours of recordings
                  */
                 navigator.storage.estimate().then((estimate) => {
                     if (!estimate.quota || !estimate.usage) return;
@@ -165,16 +162,14 @@ export function useAudioRecording(options: Options) {
         }
 
         // Convert webm to mp3 format
-        // const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
         const blobs = await audioStorage.getSessionBlobs(currentSession.value);
 
-        console.log("Combining blobs:", blobs.length);
-
-        const combinedBlob = await combineMp3Blobs(blobs);
+        const webmBlob = new Blob(blobs, { type: options.mimeType });
+        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
 
         // Update state with processed audio
-        audioBlob.value = combinedBlob;
-        audioUrl.value = URL.createObjectURL(combinedBlob);
+        audioBlob.value = mp3Blob;
+        audioUrl.value = URL.createObjectURL(mp3Blob);
 
         // Release microphone
         for (const track of stream.getTracks()) {
@@ -185,11 +180,6 @@ export function useAudioRecording(options: Options) {
         if (recordingInterval.value) {
             clearInterval(recordingInterval.value);
             recordingInterval.value = undefined;
-        }
-
-        if (requestDataInterval.value) {
-            clearInterval(requestDataInterval.value);
-            requestDataInterval.value = undefined;
         }
 
         audioStorage.deleteSession(currentSession.value);
