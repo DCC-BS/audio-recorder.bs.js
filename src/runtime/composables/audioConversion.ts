@@ -1,4 +1,4 @@
-import { FFmpeg, type LogEvent } from "@ffmpeg/ffmpeg";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 
 function toBlob(data: Uint8Array | string, mimeType: string): Blob {
@@ -14,6 +14,7 @@ function toBlob(data: Uint8Array | string, mimeType: string): Blob {
 export function useFFmpeg() {
     const ffmpeg = new FFmpeg();
 
+    // use this for debugging errors with ffmpeg
     // ffmpeg.on("log", ({ message: msg }: LogEvent) => {
     //     console.log(msg);
     // });

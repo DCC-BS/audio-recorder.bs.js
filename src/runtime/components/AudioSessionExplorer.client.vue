@@ -149,7 +149,7 @@ function formatDate(dateString: string): string {
                             </div>
 
                             <!-- Action Buttons -->
-                            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <div class="flex gap-2 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
                                 <UButton @click="downloadAudio(session.id)" color="primary" variant="soft"
                                     icon="i-lucide-download" :loading="downloadingSessionId === session.id"
                                     :disabled="downloadingSessionId === session.id || deletingSessionId === session.id"

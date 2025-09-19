@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import {
     checkMicrophoneAvailability,
@@ -20,7 +21,7 @@ const optionsDefault: Options = {
 export function useAudioRecording(options: Options) {
     const opt = { ...optionsDefault, ...options };
 
-    const { convertWebmToMp3, combineMp3Blobs } = useFFmpeg();
+    const { convertWebmToMp3 } = useFFmpeg();
 
     const audioStorage = new AudioStorageService();
 
@@ -115,7 +116,7 @@ export function useAudioRecording(options: Options) {
     ): Promise<void> {
         if (event.data.size > 0) {
             let resolve: () => void = () => {};
-            let reject: (reason?: any) => void = () => {};
+            let reject: (reason?: unknown) => void = () => {};
 
             waitForAudioStoragePromise = new Promise((res, rej) => {
                 resolve = res;

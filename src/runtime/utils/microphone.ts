@@ -18,7 +18,7 @@ export async function checkMicrophoneAvailability(): Promise<CheckMicrophoneAvai
         }
 
         return { isAvailable: true };
-    } catch (error: unknown) {
+    } catch (_) {
         return {
             isAvailable: false,
             message:

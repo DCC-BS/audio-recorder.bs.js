@@ -31,5 +31,4 @@ db.version(1).stores({
     audioSessions: "id, createdAt, updatedAt, blobCount, totalSize",
 });
 
-export type { AudioBlob, AudioSession };
 export { db };

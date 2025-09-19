@@ -79,10 +79,13 @@ function updateAudioVisualization(): void {
             const slice = freqData.slice(start, end);
             const avg =
                 slice.reduce((sum, val) => sum + val, 0) / slice.length || 0;
-            averagedData.push(avg / 255 * 100); // Normalize to percentage
+            averagedData.push((avg / 255) * 100); // Normalize to percentage
         }
 
-        audioVisualization.value = [...averagedData.toReversed(), ...averagedData];
+        audioVisualization.value = [
+            ...averagedData.toReversed(),
+            ...averagedData,
+        ];
 
         // // Transform frequency data to visualization values (0-100%)
         // audioVisualization.value = Array.from(frequencyData.value)

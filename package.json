@@ -20,7 +20,7 @@
         "dist"
     ],
     "scripts": {
-        "prepack": "nuxt-module-build build && cp src/main.css dist/",
+        "prepack": "nuxt-module-build build",
         "generate": "nuxi generate",
         "dev": "nuxi dev playground",
         "dev:build": "nuxi build playground",
@@ -38,7 +38,8 @@
         "@ffmpeg/ffmpeg": "^0.12.15",
         "@ffmpeg/util": "^0.12.2",
         "@nuxt/kit": "^4.0.0",
-        "dexie": "^4.2.0"
+        "dexie": "^4.2.0",
+        "rollup-plugin-import-css": "^4.0.2"
     },
     "devDependencies": {
         "@biomejs/biome": "latest",
@@ -51,10 +52,12 @@
         "@types/node": "latest",
         "@vitest/coverage-v8": "^3.0.6",
         "changelogen": "^0.6.0",
+        "cpx": "^1.5.0",
         "happy-dom": "^18.0.0",
         "nuxt": "^4.0.0",
         "publish-to-git": "^1.2.0",
         "typescript": "~5.9.0",
+        "unbuild": "^3.6.1",
         "vitest": "^3.0.6",
         "vitest-environment-nuxt": "^1.0.1",
         "vue-tsc": "^3.0.0"
