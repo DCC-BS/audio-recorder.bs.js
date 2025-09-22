@@ -173,7 +173,7 @@ export function useAudioRecording(options: Options = {}) {
 
     function stopRecording(): void {
         if (mediaRecorder.value && isRecording.value) {
-            throw new Error( "Test");
+            throw new Error("Test");
 
             // isRecording.value = false;
             // mediaRecorder.value.stop();
