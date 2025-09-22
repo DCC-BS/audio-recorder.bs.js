@@ -1,6 +1,7 @@
 {
     "name": "@dcc-bs/audio-recorder.bs.js",
     "description": "TODO: description",
+    "version": "0.0.1",
     "license": "MIT",
     "type": "module",
     "publishConfig": {
@@ -48,7 +49,6 @@
         "@nuxt/module-builder": "1.0.2",
         "@nuxt/schema": "4.1.2",
         "@nuxt/test-utils": "3.19.2",
-        "@orbisk/vue-use-media-recorder": "0.0.4",
         "@playwright/test": "1.55.0",
         "@types/node": "24.5.2",
         "@vitest/coverage-v8": "3.2.4",
