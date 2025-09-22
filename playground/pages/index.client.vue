@@ -3,7 +3,7 @@ import { useAudioRecording } from '../../src/runtime/composables/audioRecoding';
 
 const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } = useAudioRecording({
     logger: console.log,
-    deleteOldSessionsDaysInterval: 0.000694444444 // 1min
+    deleteOldSessionsDaysInterval: 1 // 0.000694444444 = 1min
 });
 
 async function downloadAudio(id: string) {
@@ -31,6 +31,7 @@ async function downloadAudio(id: string) {
             <div class="mb-2 flex gap-2 justify-center">
                 <span>Recording started at: {{ new Date(value.createdAt).toLocaleString() }}</span>
                 <UButton @click="downloadAudio(value.id)" color="secondary">Recover</UButton>
+                <UButton @click="deleteAbandonedRecording(value.id)" color="error">Delete</UButton>
             </div>
         </div>
     </div>

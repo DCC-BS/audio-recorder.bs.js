@@ -14,7 +14,22 @@
                     "differentBrowser": "Try a different browser.",
                     "restart": "Restart your browser or device."
                 }
-            }
+            },
+            "recordingTime": "Recording time"
+        },
+        "sessionExplorer": {
+            "title": "Audio Sessions",
+            "subtitle": "Manage and download your recorded audio sessions",
+            "loading": "Loading sessions...",
+            "emptyTitle": "No audio sessions found",
+            "emptySubtitle": "Start recording to create your first audio session",
+            "sessionId": "Session ID",
+            "size": "MB total size",
+            "downloadMp3": "Download MP3",
+            "downloading": "Downloading...",
+            "delete": "Delete",
+            "deleting": "Deleting...",
+            "count": "one session total| {count} sessions total"
         }
     }
 }

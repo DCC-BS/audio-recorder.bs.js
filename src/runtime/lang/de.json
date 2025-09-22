@@ -14,7 +14,21 @@
                     "differentBrowser": "Versuchen Sie einen anderen Browser.",
                     "restart": "Starten Sie Ihren Browser oder Ihr Gerät neu."
                 }
-            }
+            },
+            "recordingTime": "Aufnahmezeit"
+        },
+        "sessionExplorer": {
+            "title": "Audio-Sitzungen",
+            "subtitle": "Verwalten und Herunterladen Ihrer aufgezeichneten Audio-Sitzungen",
+            "loading": "Sitzungen werden geladen...",
+            "emptyTitle": "Keine Audio-Sitzungen gefunden",
+            "emptySubtitle": "Starten Sie eine Aufnahme, um Ihre erste Audio-Sitzung zu erstellen",
+            "size": "MB Gesamtgröße",
+            "downloadMp3": "MP3 herunterladen",
+            "downloading": "Wird heruntergeladen...",
+            "delete": "Löschen",
+            "deleting": "Wird gelöscht...",
+            "count": "eine Sitzung insgesamt | {count} Sitzungen insgesamt"
         }
     }
 }

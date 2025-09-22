@@ -16,6 +16,8 @@ import type { AudioSession } from "../services/db";
  */
 export type Options = {
     onRecordingStarted?: (stream: MediaStream) => void;
+    onRecordingStopped?: (audioBlob: Blob, audioUrl: string) => void;
+    onError?: (error: string) => void;
     storeToDbInterval?: number;
     mimeType?: string;
     deleteOldSessionsDaysInterval?: number;
@@ -24,6 +26,8 @@ export type Options = {
 
 const optionsDefault: Required<Options> = {
     onRecordingStarted: () => {},
+    onRecordingStopped: () => {},
+    onError: () => {},
     storeToDbInterval: 30000, // 30000
     mimeType: "audio/webm;codecs=opus",
     deleteOldSessionsDaysInterval: 7,
@@ -81,7 +85,9 @@ export function useAudioRecording(options: Options = {}) {
     let waitForAudioStoragePromise: Promise<void> | undefined;
 
     onMounted(async () => {
-        await audioStorage.clearSessionsOlderThan(opt.deleteOldSessionsDaysInterval); // days
+        await audioStorage.clearSessionsOlderThan(
+            opt.deleteOldSessionsDaysInterval,
+        ); // days
         abandonedRecording.value = await audioStorage.getAllSessions();
     });
 
@@ -208,7 +214,10 @@ export function useAudioRecording(options: Options = {}) {
                     const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
                     console.debug(`Using ${usageMB} MB out of ${quotaMB} MB.`);
                 });
-            } catch (e) {
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                error.value = message;
+                opt.onError(message);
                 reject(e);
             } finally {
                 resolve();
@@ -217,34 +226,44 @@ export function useAudioRecording(options: Options = {}) {
     }
 
     async function handleStopRecording(stream: MediaStream): Promise<void> {
-        await waitForAudioStoragePromise;
+        try {
+            await waitForAudioStoragePromise;
 
-        if (!currentSession.value) {
-            throw new Error("No active session for recording");
+            if (!currentSession.value) {
+                throw new Error("No active session for recording");
+            }
+
+            // Convert webm to mp3 format
+            const blobs = await audioStorage.getSessionBlobs(
+                currentSession.value,
+            );
+
+            const webmBlob = new Blob(blobs, { type: options.mimeType });
+            const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+
+            // Update state with processed audio
+            audioBlob.value = mp3Blob;
+            audioUrl.value = URL.createObjectURL(mp3Blob);
+
+            // Release microphone
+            for (const track of stream.getTracks()) {
+                track.stop();
+            }
+
+            // Clear recording timer
+            if (recordingInterval.value) {
+                clearInterval(recordingInterval.value);
+                recordingInterval.value = undefined;
+            }
+
+            audioStorage.deleteSession(currentSession.value);
+
+            opt.onRecordingStopped(audioBlob.value, audioUrl.value);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            error.value = message;
+            opt.onError(message);
         }
-
-        // Convert webm to mp3 format
-        const blobs = await audioStorage.getSessionBlobs(currentSession.value);
-
-        const webmBlob = new Blob(blobs, { type: options.mimeType });
-        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
-
-        // Update state with processed audio
-        audioBlob.value = mp3Blob;
-        audioUrl.value = URL.createObjectURL(mp3Blob);
-
-        // Release microphone
-        for (const track of stream.getTracks()) {
-            track.stop();
-        }
-
-        // Clear recording timer
-        if (recordingInterval.value) {
-            clearInterval(recordingInterval.value);
-            recordingInterval.value = undefined;
-        }
-
-        audioStorage.deleteSession(currentSession.value);
     }
 
     function resetRecording(): void {

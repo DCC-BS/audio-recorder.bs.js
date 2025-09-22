@@ -3,10 +3,13 @@ import { AnimatePresence, motion } from "motion-v";
 import { useFFmpeg } from "../composables/audioConversion";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
+import { useI18n } from "vue-i18n";
 
 const audioStorage = new AudioStorageService();
 
 const { convertWebmToMp3 } = useFFmpeg();
+const { t } = useI18n();
+
 const sessions = ref<AudioSession[]>([]);
 const isLoading = ref(true);
 const deletingSessionId = ref<string | null>(null);
@@ -72,10 +75,10 @@ function formatDate(dateString: string): string {
             class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">
                 <UIcon name="i-lucide-audio-waveform" class="inline-block mr-3 text-primary-500" />
-                Audio Sessions
+                {{ t('audio-recorder.sessionExplorer.title') }}
             </h1>
             <p class="text-gray-600 dark:text-gray-400">
-                Manage and download your recorded audio sessions
+                {{ t('audio-recorder.sessionExplorer.subtitle') }}
             </p>
         </motion.div>
 
@@ -83,7 +86,8 @@ function formatDate(dateString: string): string {
         <motion.div v-if="isLoading" :initial="{ opacity: 0 }" :animate="{ opacity: 1 }" :exit="{ opacity: 0 }"
             class="flex justify-center items-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin text-4xl text-primary-500" />
-            <span class="ml-3 text-lg text-gray-600 dark:text-gray-400">Loading sessions...</span>
+            <span class="ml-3 text-lg text-gray-600 dark:text-gray-400">{{ t('audio-recorder.sessionExplorer.loading')
+            }}</span>
         </motion.div>
 
         <!-- Empty State -->
@@ -91,10 +95,10 @@ function formatDate(dateString: string): string {
             :animate="{ opacity: 1, scale: 1 }" :transition="{ duration: 0.5 }" class="text-center py-16">
             <UIcon name="i-lucide-music" class="text-6xl text-gray-400 dark:text-gray-600 mb-4" />
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                No audio sessions found
+                {{ t('audio-recorder.sessionExplorer.emptyTitle') }}
             </h3>
             <p class="text-gray-500 dark:text-gray-500">
-                Start recording to create your first audio session
+                {{ t('audio-recorder.sessionExplorer.emptySubtitle') }}
             </p>
         </motion.div>
 
@@ -124,7 +128,8 @@ function formatDate(dateString: string): string {
                                             {{ session.name }}
                                         </h3>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                                            Session ID: {{ session.id.slice(0, 8) }}...
+                                            {{ t('audio-recorder.sessionExplorer.sessionId') }}: {{ session.id.slice(0,
+                                                8) }}...
                                         </p>
                                     </div>
                                 </div>
@@ -143,7 +148,8 @@ function formatDate(dateString: string): string {
                                 <div class="flex items-center space-x-2">
                                     <UIcon name="i-lucide-hard-drive" class="text-gray-400" />
                                     <span class="text-sm text-gray-600 dark:text-gray-400">
-                                        {{ formatFileSize(session.totalSize) }} MB total size
+                                        {{ formatFileSize(session.totalSize) }} {{
+                                            t('audio-recorder.sessionExplorer.size') }}
                                     </span>
                                 </div>
                             </div>
@@ -154,14 +160,17 @@ function formatDate(dateString: string): string {
                                     icon="i-lucide-download" :loading="downloadingSessionId === session.id"
                                     :disabled="downloadingSessionId === session.id || deletingSessionId === session.id"
                                     class="transition-all duration-200 hover:scale-105">
-                                    {{ downloadingSessionId === session.id ? 'Downloading...' : 'Download MP3' }}
+                                    {{ downloadingSessionId === session.id ?
+                                        t('audio-recorder.sessionExplorer.downloading') :
+                                        t('audio-recorder.sessionExplorer.downloadMp3') }}
                                 </UButton>
 
                                 <UButton @click="deleteSession(session.id)" color="error" variant="soft"
                                     icon="i-lucide-trash-2" :loading="deletingSessionId === session.id"
                                     :disabled="deletingSessionId === session.id || downloadingSessionId === session.id"
                                     class="transition-all duration-200 hover:scale-105">
-                                    {{ deletingSessionId === session.id ? 'Deleting...' : 'Delete' }}
+                                    {{ deletingSessionId === session.id ? t('audio-recorder.sessionExplorer.deleting') :
+                                        t('audio-recorder.sessionExplorer.delete') }}
                                 </UButton>
                             </div>
                         </div>
@@ -175,7 +184,7 @@ function formatDate(dateString: string): string {
             :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.5, delay: 0.8 }"
             class="text-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                {{ sessions.length }} {{ sessions.length === 1 ? 'session' : 'sessions' }} total
+                {{ t('audio-recorder.sessionExplorer.count', sessions.length) }}
             </p>
         </motion.div>
     </UContainer>

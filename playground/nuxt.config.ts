@@ -3,6 +3,9 @@ export default defineNuxtConfig({
     devtools: { enabled: true },
     compatibilityDate: "2025-02-17",
     css: ["assets/main.css"],
+    ui: {
+        colorMode: false, // Disable color mode as it is not used
+    },
     i18n: {
         locales: [
             { code: "en", file: "en.json" },

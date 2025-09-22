@@ -17,7 +17,6 @@ export default defineNuxtModule<ModuleRuntimeHooks>({
 
         _nuxt.hook("i18n:registerModule", (register) => {
             register({
-                // langDir path needs to be resolved
                 langDir: resolver.resolve("./runtime/lang"),
                 locales: [
                     {

@@ -13,7 +13,6 @@ function toBlob(data: Uint8Array | string, mimeType: string): Blob {
 
 /**
  * Hook to use FFmpeg for audio conversion
- *
  */
 export function useFFmpeg(logger?: (msg: string) => void) {
     const ffmpeg = new FFmpeg();
