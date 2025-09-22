@@ -9,7 +9,7 @@ on:
         - main
 
 jobs:
-  test:
+  tests-e2e:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +34,7 @@ jobs:
         path: playwright-report/
         retention-days: 30
   
-  build:
+  tests-unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

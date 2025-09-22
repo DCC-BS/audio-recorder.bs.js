@@ -87,7 +87,7 @@ const formattedRecordingTime = computed(() => {
                 <motion.div
                     class="bg-slate-900/5 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/30 dark:border-slate-700/30"
                     :initial="{ scale: 0.8 }" :animate="{ scale: 1 }" :transition="{ delay: 0.2, type: 'spring' }">
-                    <motion.div layout class="text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2">
+                    <motion.div layout class="recording-time text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2">
                         {{ formattedRecordingTime }}
                     </motion.div>
                     <p class="text-sm text-slate-600 dark:text-slate-400">{{ t("audio-recorder.audio.recordingTime") }}</p>
