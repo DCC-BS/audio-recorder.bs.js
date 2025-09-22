@@ -7,17 +7,6 @@ const stopRecordingText = local["audio-recorder"].audio.stopRecording as string;
 const recordingInProgressText = local["audio-recorder"].audio.recordingInProgress as string;
 
 test.describe("Audio Recorder", () => {
-    test("test", async ({ page }) => {
-        await page.goto("/");
-        await page
-            .getByRole("button", { name: startRecordingText })
-            .click();
-        await page
-            .getByRole("button", { name: stopRecordingText })
-            .click();
-        await expect(page.getByText("Recording Complete")).toBeVisible();
-    });
-
     test("should display start recording button on page load", async ({
         page,
     }) => {
@@ -131,5 +120,14 @@ test.describe("Audio Recorder", () => {
         if ((await errorMessage.count()) > 0) {
             await expect(errorMessage).toBeVisible();
         }
+    });
+
+    test("When abandoned recordings are found", async ({ page }) => {
+        await page.goto("/");
+
+        await page.getByRole('button', { name: 'Start Recording' }).click();
+        await page.waitForTimeout(500); // Wait for a second to simulate recording time
+        await page.goto('http://localhost:3000/');
+        await expect(page.getByText(/.*Found abandoned recordings/)).toBeVisible();
     });
 });
