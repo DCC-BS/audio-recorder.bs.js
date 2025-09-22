@@ -29,6 +29,10 @@ jobs:
       run:  bun run generate
     - name: Run Playwright tests
       run: bunx playwright test
+    - uses: daun/playwright-report-summary@v3
+      if: always()
+      with:
+        report-file: results.json
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
