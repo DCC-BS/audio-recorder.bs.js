@@ -56,3 +56,5 @@ Temporary Items
 .apdisk
 
 test-report.junit.xml
+test-results/
+playwright-report/
