@@ -8,7 +8,7 @@ export default defineVitestConfig({
         globals: true,
         environmentOptions: {
             nuxt: {
-                rootDir: fileURLToPath(new URL("test/nuxt/", import.meta.url)),
+                rootDir: fileURLToPath(new URL("tests/nuxt/", import.meta.url)),
             },
         },
         coverage: {

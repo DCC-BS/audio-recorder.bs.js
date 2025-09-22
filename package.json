@@ -35,36 +35,36 @@
         "test:e2e:ui": "playwright test --ui"
     },
     "dependencies": {
-        "@ffmpeg/ffmpeg": "^0.12.15",
-        "@ffmpeg/util": "^0.12.2",
-        "@nuxt/kit": "^4.0.0",
-        "@nuxtjs/i18n": "^10.1.0",
-        "dexie": "^4.2.0",
-        "rollup-plugin-import-css": "^4.0.2"
+        "@ffmpeg/ffmpeg": "0.12.15",
+        "@ffmpeg/util": "0.12.2",
+        "@nuxt/kit": "4.1.2",
+        "@nuxtjs/i18n": "10.1.0",
+        "dexie": "4.2.0",
+        "rollup-plugin-import-css": "4.0.2"
     },
     "devDependencies": {
-        "@biomejs/biome": "latest",
-        "@nuxt/devtools": "^2.0.0",
-        "@nuxt/module-builder": "^1.0.0",
-        "@nuxt/schema": "^4.0.0",
-        "@nuxt/test-utils": "^3.15.4",
-        "@orbisk/vue-use-media-recorder": "^0.0.4",
-        "@playwright/test": "^1.55.0",
-        "@types/node": "latest",
-        "@vitest/coverage-v8": "^3.0.6",
-        "changelogen": "^0.6.0",
-        "cpx": "^1.5.0",
-        "happy-dom": "^18.0.0",
-        "nuxt": "^4.0.0",
-        "publish-to-git": "^1.2.0",
-        "typescript": "~5.9.0",
-        "unbuild": "^3.6.1",
-        "vitest": "^3.0.6",
-        "vitest-environment-nuxt": "^1.0.1",
-        "vue-tsc": "^3.0.0"
+        "@biomejs/biome": "2.2.4",
+        "@nuxt/devtools": "2.6.5",
+        "@nuxt/module-builder": "1.0.2",
+        "@nuxt/schema": "4.1.2",
+        "@nuxt/test-utils": "3.19.2",
+        "@orbisk/vue-use-media-recorder": "0.0.4",
+        "@playwright/test": "1.55.0",
+        "@types/node": "24.5.2",
+        "@vitest/coverage-v8": "3.2.4",
+        "changelogen": "0.6.2",
+        "cpx": "1.5.0",
+        "happy-dom": "18.0.1",
+        "nuxt": "4.1.2",
+        "publish-to-git": "1.2.0",
+        "typescript": "5.9.2",
+        "unbuild": "3.6.1",
+        "vitest": "3.2.4",
+        "vitest-environment-nuxt": "1.0.1",
+        "vue-tsc": "3.0.7"
     },
     "peerDependencies": {
-        "@nuxt/ui": "^3.3.0",
-        "motion-v": "^1.7.1"
+        "@nuxt/ui": "3.3.4",
+        "motion-v": "1.7.1"
     }
 }

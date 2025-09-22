@@ -1,5 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+
+test('test', async ({ page, context }) => {
+ await context.grantPermissions(['microphone']);
+  await page.goto('http://localhost:3000/');
+  await page.getByRole('button', { name: /Start Recording|Aufnahme starten/ }).click();
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: /Stop Recording|Aufnahme stoppen/ }).click();
+  expect(page.getByText('Recording Complete')).toBeVisible();
+});
+
 test.describe("Audio Recorder", () => {
     test.beforeEach(async ({ page, context }) => {
         // Grant microphone permissions
