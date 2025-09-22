@@ -1,11 +1,11 @@
 import { ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
+import type { AudioSession } from "../services/db";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
 import { useFFmpeg } from "./audioConversion";
-import type { AudioSession } from "../services/db";
 
 /**
  * Options for audio recording

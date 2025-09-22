@@ -1,15 +1,11 @@
 <script setup lang="ts">
-
 const { locale, locales, setLocale } = useI18n();
 
 const changeLocale = (newLocale: "en" | "de") => {
     setLocale(newLocale);
 };
 
-const items = computed(() =>
-    locales.value.map((loc) => loc.code,
-    ),
-);
+const items = computed(() => locales.value.map((loc) => loc.code));
 </script>
 
 <template>
