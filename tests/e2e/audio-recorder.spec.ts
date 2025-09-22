@@ -7,7 +7,7 @@ test('test', async ({ page, context }) => {
   await page.getByRole('button', { name: /Start Recording|Aufnahme starten/ }).click();
   await page.waitForTimeout(1000);
   await page.getByRole('button', { name: /Stop Recording|Aufnahme stoppen/ }).click();
-  expect(page.getByText('Recording Complete')).toBeVisible();
+  await expect(page.getByText('Recording Complete')).toBeVisible();
 });
 
 test.describe("Audio Recorder", () => {
