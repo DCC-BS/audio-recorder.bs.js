@@ -120,6 +120,8 @@ export function useAudioRecording(options: Options = {}) {
         }
 
         try {
+            throw new Error( "Test");
+
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
             });
