@@ -120,8 +120,6 @@ export function useAudioRecording(options: Options = {}) {
         }
 
         try {
-            throw new Error( "Test");
-
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
             });
@@ -175,8 +173,10 @@ export function useAudioRecording(options: Options = {}) {
 
     function stopRecording(): void {
         if (mediaRecorder.value && isRecording.value) {
-            isRecording.value = false;
-            mediaRecorder.value.stop();
+            throw new Error( "Test");
+
+            // isRecording.value = false;
+            // mediaRecorder.value.stop();
         }
     }
 
