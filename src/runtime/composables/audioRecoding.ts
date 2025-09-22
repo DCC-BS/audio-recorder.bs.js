@@ -5,23 +5,59 @@ import {
     handleMicrophoneError,
 } from "../utils/microphone";
 import { useFFmpeg } from "./audioConversion";
+import type { AudioSession } from "../services/db";
 
+/**
+ * Options for audio recording
+ * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
+ * @property storeToDbInterval - Interval in milliseconds to store audio blobs to the database (default: 30000 (30 seconds))
+ * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
+ * @property deleteOldSessionsDaysInterval - Number of days to keep old sessions before deletion (default: 7)
+ */
 export type Options = {
-    onRecordingStarted: (stream: MediaStream) => void;
+    onRecordingStarted?: (stream: MediaStream) => void;
     storeToDbInterval?: number;
     mimeType?: string;
+    deleteOldSessionsDaysInterval?: number;
+    logger?: (msg: string) => void;
 };
 
-const optionsDefault: Options = {
+const optionsDefault: Required<Options> = {
     onRecordingStarted: () => {},
     storeToDbInterval: 30000, // 30000
     mimeType: "audio/webm;codecs=opus",
+    deleteOldSessionsDaysInterval: 7,
+    logger: (_: string) => {},
 };
 
-export function useAudioRecording(options: Options) {
+/**
+ * Composable for audio recording using MediaRecorder API
+ * Handles microphone access, recording state, and audio storage
+ *
+ * @param options - Configuration options for recording
+ * @returns Object containing recording state, controls, and recorded audio data
+ *
+ * @example
+ * ```
+ * const stream = ref<MediaStream>();
+ * const {
+ *     isRecording,
+ *     startRecording,
+ *     stopRecording,
+ *     recordingTime,
+ *     error,
+ *     audioUrl,
+ * } = useAudioRecording({
+ *     onRecordingStarted: (s: MediaStream) => {
+ *         stream.value = s;
+ *     },
+ * });
+ * ```
+ */
+export function useAudioRecording(options: Options = {}) {
     const opt = { ...optionsDefault, ...options };
 
-    const { convertWebmToMp3 } = useFFmpeg();
+    const { convertWebmToMp3 } = useFFmpeg(opt.logger);
 
     const audioStorage = new AudioStorageService();
 
@@ -40,8 +76,33 @@ export function useAudioRecording(options: Options) {
     const audioUrl = ref<string>();
 
     const error = ref<string>();
+    const abandonedRecording = ref<AudioSession[]>([]);
 
     let waitForAudioStoragePromise: Promise<void> | undefined;
+
+    onMounted(async () => {
+        await audioStorage.clearSessionsOlderThan(opt.deleteOldSessionsDaysInterval); // days
+        abandonedRecording.value = await audioStorage.getAllSessions();
+    });
+
+    async function getWebmBlob(sessionId: string): Promise<Blob> {
+        const blobs = await audioStorage.getSessionBlobs(sessionId);
+        return new Blob(blobs, { type: "audio/webm" });
+    }
+
+    async function getMp3Blob(sessionId: string): Promise<Blob> {
+        const blobs = await audioStorage.getSessionBlobs(sessionId);
+        const webmBlob = new Blob(blobs, { type: "audio/webm" });
+        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+        return mp3Blob;
+    }
+
+    async function deleteAbandonedRecording(sessionId: string): Promise<void> {
+        await audioStorage.deleteSession(sessionId);
+        abandonedRecording.value = abandonedRecording.value.filter(
+            (s) => s.id !== sessionId,
+        );
+    }
 
     async function startRecording() {
         const availabilityResult = await checkMicrophoneAvailability();
@@ -208,5 +269,9 @@ export function useAudioRecording(options: Options) {
         recordingStartTime,
         elapsedTime,
         error,
+        abandonedRecording,
+        getWebmBlob,
+        getMp3Blob,
+        deleteAbandonedRecording,
     };
 }

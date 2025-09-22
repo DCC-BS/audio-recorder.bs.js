@@ -1,0 +1,20 @@
+{
+    "audio-recorder": {
+        "audio": {
+            "startRecording": "Start Recording",
+            "recordingInProgress": "Recording in progress...",
+            "stopRecording": "Stop Recording",
+            "downloadRecording": "Download Recording",
+            "errors": {
+                "noMicrophoneFound": "No microphone found.",
+                "accessDenied": "Microphone access denied.",
+                "troubleshooting": {
+                    "properlyConnected": "Ensure your microphone is properly connected.",
+                    "checkPermissions": "Check browser permissions for microphone access.",
+                    "differentBrowser": "Try a different browser.",
+                    "restart": "Restart your browser or device."
+                }
+            }
+        }
+    }
+}

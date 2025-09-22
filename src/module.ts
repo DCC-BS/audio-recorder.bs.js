@@ -1,15 +1,11 @@
-import {
-    addComponent,
-    addComponentsDir,
-    createResolver,
-    defineNuxtModule,
-} from "@nuxt/kit";
+import { addComponentsDir, createResolver, defineNuxtModule } from "@nuxt/kit";
+import type { ModuleRuntimeHooks } from "@nuxtjs/i18n";
 
 export * from "./runtime/composables/audioConversion";
 export * from "./runtime/composables/audioRecoding";
 export * from "./runtime/utils/microphone";
 
-export default defineNuxtModule({
+export default defineNuxtModule<ModuleRuntimeHooks>({
     meta: {
         name: "audio-recorder.bs.js",
         configKey: "audio-recorder.bs.js",
@@ -18,6 +14,24 @@ export default defineNuxtModule({
     defaults: {},
     setup(_options, _nuxt) {
         const resolver = createResolver(import.meta.url);
+
+        _nuxt.hook("i18n:registerModule", (register) => {
+            register({
+                // langDir path needs to be resolved
+                langDir: resolver.resolve("./runtime/lang"),
+                locales: [
+                    {
+                        code: "en",
+                        file: "en.json",
+                    },
+                    {
+                        code: "de",
+                        file: "de.json",
+                    },
+                ],
+            });
+        });
+
         addComponentsDir({
             path: resolver.resolve("./runtime/components"),
             global: true,

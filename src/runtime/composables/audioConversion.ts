@@ -1,4 +1,4 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { FFmpeg, type LogEvent } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 
 function toBlob(data: Uint8Array | string, mimeType: string): Blob {
@@ -11,13 +11,18 @@ function toBlob(data: Uint8Array | string, mimeType: string): Blob {
     return new Blob([uint8], { type: mimeType });
 }
 
-export function useFFmpeg() {
+/**
+ * Hook to use FFmpeg for audio conversion
+ *
+ */
+export function useFFmpeg(logger?: (msg: string) => void) {
     const ffmpeg = new FFmpeg();
 
-    // use this for debugging errors with ffmpeg
-    // ffmpeg.on("log", ({ message: msg }: LogEvent) => {
-    //     console.log(msg);
-    // });
+    if (logger) {
+        ffmpeg.on("log", ({ message: msg }: LogEvent) => {
+            logger(msg);
+        });
+    }
 
     const loadPromise = ffmpeg.load();
 

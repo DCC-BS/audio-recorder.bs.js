@@ -8,13 +8,12 @@ export class AudioStorageService {
 
     public async createSession(name?: string): Promise<string> {
         const id = this.generateId();
-        const now = new Date().toISOString();
+        const now = new Date(Date.now()).toISOString();
 
         await db.audioSessions.add({
             id,
             name,
             createdAt: now,
-            updatedAt: now,
             blobCount: 0,
             totalSize: 0,
             blobIds: [],
@@ -56,7 +55,6 @@ export class AudioStorageService {
                 // Update session metadata
                 session.blobCount += 1;
                 session.totalSize += blob.size;
-                session.updatedAt = now;
                 session.blobIds.push(id);
 
                 await db.audioSessions.put(session);
@@ -76,7 +74,10 @@ export class AudioStorageService {
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {
-        const sessions = await db.audioSessions.toArray();
+        const sessions = await db.audioSessions
+            .where("blobCount")
+            .aboveOrEqual(1)
+            .toArray();
         return sessions;
     }
 
@@ -100,5 +101,20 @@ export class AudioStorageService {
                 await db.audioSessions.delete(sessionId);
             },
         );
+    }
+
+    public async clearSessionsOlderThan(days: number): Promise<void> {
+        const cutoffDateUTC = Date.now();
+        const cutoffDate = new Date(cutoffDateUTC - days * 24 * 60 * 60 * 1000);
+        const cutoffIso = cutoffDate.toISOString();
+
+        const oldSessions = await db.audioSessions
+            .where("createdAt")
+            .below(cutoffIso)
+            .toArray();
+
+        for (const session of oldSessions) {
+            await this.deleteSession(session.id);
+        }
     }
 }

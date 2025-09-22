@@ -15,7 +15,6 @@ export interface AudioSession {
     id: string;
     name?: string;
     createdAt: string;
-    updatedAt: string;
     blobCount: number;
     totalSize: number;
     blobIds: string[];

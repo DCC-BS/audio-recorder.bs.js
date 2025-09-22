@@ -1,0 +1,20 @@
+{
+    "audio-recorder": {
+        "audio": {
+            "startRecording": "Aufnahme starten",
+            "recordingInProgress": "Aufnahme läuft...",
+            "stopRecording": "Aufnahme stoppen",
+            "downloadRecording": "Aufnahme herunterladen",
+            "errors": {
+                "noMicrophoneFound": "Kein Mikrofon gefunden.",
+                "accessDenied": "Mikrofonzugriff verweigert.",
+                "troubleshooting": {
+                    "properlyConnected": "Stellen Sie sicher, dass Ihr Mikrofon richtig angeschlossen ist.",
+                    "checkPermissions": "Überprüfen Sie die Browser-Berechtigungen für den Mikrofonzugriff.",
+                    "differentBrowser": "Versuchen Sie einen anderen Browser.",
+                    "restart": "Starten Sie Ihren Browser oder Ihr Gerät neu."
+                }
+            }
+        }
+    }
+}
