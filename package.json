@@ -63,7 +63,7 @@
         "vue-tsc": "3.0.8"
     },
     "peerDependencies": {
-        "@nuxt/ui": "3.3.4",
+        "@nuxt/ui": "3.3.5",
         "motion-v": "1.7.1"
     }
 }
