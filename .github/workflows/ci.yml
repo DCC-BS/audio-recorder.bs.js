@@ -27,6 +27,8 @@ jobs:
       run: bunx playwright install --with-deps
     - name: Prepare the application
       run:  bun run generate
+    - name: Build the playground
+      run:  bun run dev:build
     - name: Run Playwright tests
       run: bunx playwright test
     - uses: daun/playwright-report-summary@v3
