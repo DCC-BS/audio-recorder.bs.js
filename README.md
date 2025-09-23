@@ -40,7 +40,7 @@ Install the module to your Nuxt application:
 ```bash
 bun add git+https://github.com/DCC-BS/audio-recorder.bs.js#v1.1.0
 ```
-replace `v1.1.0` with the latest version tag: ![GitHub package.json version](https://img.shields.io/github/package-json/v/DCC-BS/common-ui.bs.js)
+replace `v1.1.0` with the latest version tag: ![GitHub package.json version](https://img.shields.io/github/package-json/v/DCC-BS/audio-recorder.bs.js)
 
 Add it to your `nuxt.config.ts`:
 
