@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { useAudioRecording } from '../../src/runtime/composables/audioRecoding';
+import { useAudioRecording } from "../../src/runtime/composables/audioRecoding";
 
-const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } = useAudioRecording({
-    logger: console.log,
-    deleteOldSessionsDaysInterval: 1 // 0.000694444444 = 1min
-});
+const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } =
+    useAudioRecording({
+        logger: console.log,
+        deleteOldSessionsDaysInterval: 1, // 0.000694444444 = 1min
+    });
 
 async function downloadAudio(id: string) {
     const blob = await getMp3Blob(id);
     if (blob) {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
         a.download = `recording-${new Date().toISOString()}.mp3`;
         document.body.appendChild(a);

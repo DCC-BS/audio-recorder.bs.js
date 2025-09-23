@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import local from "../../src/runtime/lang/en.json" with { type: 'json' };
+import local from "../../src/runtime/lang/en.json" with { type: "json" };
 
-const startRecordingText = local["audio-recorder"].audio.startRecording as string;
+const startRecordingText = local["audio-recorder"].audio
+    .startRecording as string;
 const stopRecordingText = local["audio-recorder"].audio.stopRecording as string;
-const recordingInProgressText = local["audio-recorder"].audio.recordingInProgress as string;
+const recordingInProgressText = local["audio-recorder"].audio
+    .recordingInProgress as string;
 
 test.describe("Audio Recorder", () => {
     test("should display start recording button on page load", async ({
@@ -66,9 +68,7 @@ test.describe("Audio Recorder", () => {
         await expect(recordingTime).toHaveText(/^\d{2}:\d{2}$/);
 
         // Stop recording
-        await page
-            .getByRole("button", { name: stopRecordingText })
-            .click();
+        await page.getByRole("button", { name: stopRecordingText }).click();
     });
 
     test("should handle multiple recording sessions", async ({ page }) => {
@@ -77,9 +77,7 @@ test.describe("Audio Recorder", () => {
         // First recording session
         await page.getByRole("button", { name: startRecordingText }).click();
         await page.waitForTimeout(500);
-        await page
-            .getByRole("button", { name: stopRecordingText })
-            .click();
+        await page.getByRole("button", { name: stopRecordingText }).click();
 
         // Wait for UI to reset
         await expect(
@@ -89,9 +87,7 @@ test.describe("Audio Recorder", () => {
         // Second recording session
         await page.getByRole("button", { name: startRecordingText }).click();
         await page.waitForTimeout(500);
-        await page
-            .getByRole("button", { name: stopRecordingText })
-            .click();
+        await page.getByRole("button", { name: stopRecordingText }).click();
 
         // Verify we can start again
         await expect(
@@ -125,9 +121,11 @@ test.describe("Audio Recorder", () => {
     test("When abandoned recordings are found", async ({ page }) => {
         await page.goto("/");
 
-        await page.getByRole('button', { name: 'Start Recording' }).click();
+        await page.getByRole("button", { name: "Start Recording" }).click();
         await page.waitForTimeout(500); // Wait for a second to simulate recording time
-        await page.goto('http://localhost:3000/');
-        await expect(page.getByText(/.*Found abandoned recordings/)).toBeVisible();
+        await page.goto("http://localhost:3000/");
+        await expect(
+            page.getByText(/.*Found abandoned recordings/),
+        ).toBeVisible();
     });
 });

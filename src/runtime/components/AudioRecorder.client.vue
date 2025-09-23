@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import UButton from "@nuxt/ui/components/Button.vue";
+import { AnimatePresence, motion } from "motion-v";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useAudioRecording } from "../composables/audioRecoding";
 import AudioVisualizer from "./AudioVisualizer.client.vue";
-import { useI18n } from "vue-i18n";
-import { motion, AnimatePresence } from "motion-v";
 
 interface Props {
     showResult?: boolean;

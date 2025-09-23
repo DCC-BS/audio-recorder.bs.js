@@ -21,12 +21,20 @@ jobs:
       run: npm install -g bun
     - name: Install dependencies
       run: bun install
+    - name: Biome Check
+      run: bunx biome check
     - name: Install Playwright Browsers
       run: bunx playwright install --with-deps
     - name: Prepare the application
       run:  bun run generate
+    - name: Build the playground
+      run:  bun run dev:build
     - name: Run Playwright tests
       run: bunx playwright test
+    - uses: daun/playwright-report-summary@v3
+      if: always()
+      with:
+        report-file: results.json
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
