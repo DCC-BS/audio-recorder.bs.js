@@ -28,7 +28,7 @@
         "unbuild": "3.6.1",
         "vitest": "3.2.4",
         "vitest-environment-nuxt": "1.0.1",
-        "vue-tsc": "3.0.8",
+        "vue-tsc": "3.1.0",
       },
       "peerDependencies": {
         "@nuxt/ui": "3.3.5",
@@ -653,7 +653,7 @@
 
     "@vue/devtools-shared": ["@vue/devtools-shared@7.7.7", "", { "dependencies": { "rfdc": "^1.4.1" } }, "sha512-+udSj47aRl5aKb0memBvcUG9koarqnxNM5yjuREvqwK6T3ap4mn3Zqqc17QrBFTqSMjr3HK1cvStEZpMDpfdyw=="],
 
-    "@vue/language-core": ["@vue/language-core@3.0.8", "", { "dependencies": { "@volar/language-core": "2.4.23", "@vue/compiler-dom": "^3.5.0", "@vue/compiler-vue2": "^2.7.16", "@vue/shared": "^3.5.0", "alien-signals": "^2.0.5", "muggle-string": "^0.4.1", "path-browserify": "^1.0.1", "picomatch": "^4.0.2" }, "peerDependencies": { "typescript": "*" }, "optionalPeers": ["typescript"] }, "sha512-eYs6PF7bxoPYvek9qxceo1BCwFbJZYqJll+WaYC8o8ec60exqj+n+QRGGiJHSeUfYp0hDxARbMdxMq/fbPgU5g=="],
+    "@vue/language-core": ["@vue/language-core@3.1.0", "", { "dependencies": { "@volar/language-core": "2.4.23", "@vue/compiler-dom": "^3.5.0", "@vue/shared": "^3.5.0", "alien-signals": "^3.0.0", "muggle-string": "^0.4.1", "path-browserify": "^1.0.1", "picomatch": "^4.0.2" }, "peerDependencies": { "typescript": "*" }, "optionalPeers": ["typescript"] }, "sha512-a7ns+X9vTbdmk7QLrvnZs8s4E1wwtxG/sELzr6F2j4pU+r/OoAv6jJGSz+5tVTU6e4+3rjepGhSP8jDmBBcb3w=="],
 
     "@vue/reactivity": ["@vue/reactivity@3.5.21", "", { "dependencies": { "@vue/shared": "3.5.21" } }, "sha512-3ah7sa+Cwr9iiYEERt9JfZKPw4A2UlbY8RbbnH2mGCE8NwHkhmlZt2VsH0oDA3P08X3jJd29ohBDtX+TbD9AsA=="],
 
@@ -687,7 +687,7 @@
 
     "ajv": ["ajv@6.12.6", "", { "dependencies": { "fast-deep-equal": "^3.1.1", "fast-json-stable-stringify": "^2.0.0", "json-schema-traverse": "^0.4.1", "uri-js": "^4.2.2" } }, "sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g=="],
 
-    "alien-signals": ["alien-signals@2.0.7", "", {}, "sha512-wE7y3jmYeb0+h6mr5BOovuqhFv22O/MV9j5p0ndJsa7z1zJNPGQ4ph5pQk/kTTCWRC3xsA4SmtwmkzQO+7NCNg=="],
+    "alien-signals": ["alien-signals@3.0.0", "", {}, "sha512-JHoRJf18Y6HN4/KZALr3iU+0vW9LKG+8FMThQlbn4+gv8utsLIkwpomjElGPccGeNwh0FI2HN6BLnyFLo6OyLQ=="],
 
     "ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
@@ -1777,7 +1777,7 @@
 
     "vue-sfc-transformer": ["vue-sfc-transformer@0.1.16", "", { "dependencies": { "@babel/parser": "^7.27.0" }, "peerDependencies": { "@vue/compiler-core": "^3.5.13", "esbuild": "*", "vue": "^3.5.13" } }, "sha512-pXx4pkHigOJCzGPXhGA9Rdou1oIuNiF9n4n5GQ7C4QehTXFEpKUjcpvc3PZ6LvC6ccUL021qor8j1153Y7/6Ig=="],
 
-    "vue-tsc": ["vue-tsc@3.0.8", "", { "dependencies": { "@volar/typescript": "2.4.23", "@vue/language-core": "3.0.8" }, "peerDependencies": { "typescript": ">=5.0.0" }, "bin": { "vue-tsc": "./bin/vue-tsc.js" } }, "sha512-H9yg/m6ywykmWS+pIAEs65v2FrVm5uOA0a0dHkX6Sx8dNg1a1m4iudt/6eGa9fAenmNHGlLFN9XpWQb8i5sU1w=="],
+    "vue-tsc": ["vue-tsc@3.1.0", "", { "dependencies": { "@volar/typescript": "2.4.23", "@vue/language-core": "3.1.0" }, "peerDependencies": { "typescript": ">=5.0.0" }, "bin": { "vue-tsc": "./bin/vue-tsc.js" } }, "sha512-fbMynMG7kXSnqZTRBSCh9ROYaVpXfCZbEO0gY3lqOjLbp361uuS88n6BDajiUriDIF+SGLWoinjvf6stS2J3Gg=="],
 
     "webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
 
@@ -2206,6 +2206,8 @@
     "string-width/strip-ansi/ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
 
     "unplugin-vue-components/chokidar/readdirp": ["readdirp@3.6.0", "", { "dependencies": { "picomatch": "^2.2.1" } }, "sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA=="],
+
+    "unplugin-vue-router/@vue/language-core/alien-signals": ["alien-signals@2.0.7", "", {}, "sha512-wE7y3jmYeb0+h6mr5BOovuqhFv22O/MV9j5p0ndJsa7z1zJNPGQ4ph5pQk/kTTCWRC3xsA4SmtwmkzQO+7NCNg=="],
 
     "vaul-vue/@vueuse/core/@types/web-bluetooth": ["@types/web-bluetooth@0.0.20", "", {}, "sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow=="],
 
