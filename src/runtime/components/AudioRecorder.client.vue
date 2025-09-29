@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import UButton from "@nuxt/ui/components/Button.vue";
 import { AnimatePresence, motion } from "motion-v";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAudioRecording } from "../composables/audioRecoding";
 import AudioVisualizer from "./AudioVisualizer.client.vue";
 
 interface Props {
     showResult?: boolean;
+    autoStart?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     showResult: true,
+    autoStart: false,
 });
 
 const emit = defineEmits<{
@@ -38,6 +40,12 @@ const {
         emit("recording-stopped", audioBlob, audioUrl);
     },
     storeToDbInterval: 10,
+});
+
+onMounted(() => {
+    if (props.autoStart) {
+        startRecording();
+    }
 });
 
 const formattedRecordingTime = computed(() => {
