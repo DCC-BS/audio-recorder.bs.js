@@ -48,16 +48,14 @@ const formattedRecordingTime = computed(() => {
 </script>
 
 <template>
-    <div
-        class="max-w-2xl mx-auto p-8 bg-slate-50 dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200/50 dark:border-slate-700/50">
+    <div>
         <!-- Start Recording Button -->
         <AnimatePresence>
             <motion.div v-if="!isRecording" key="start-button" :initial="{ opacity: 0, scale: 0.8, y: 20 }"
                 :animate="{ opacity: 1, scale: 1, y: 0 }" :exit="{ opacity: 0, scale: 0.8, y: -20 }"
                 :transition="{ duration: 0.5, type: 'spring', bounce: 0.3 }" class="text-center">
                 <div>
-                    <UButton color="primary" icon="i-lucide-mic" @click="startRecording" size="xl"
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0">
+                    <UButton color="primary" variant="link" icon="i-lucide-mic" @click="startRecording" size="xl">
                         {{ t('audio-recorder.audio.startRecording') }}
                     </UButton>
                 </div>
@@ -118,7 +116,7 @@ const formattedRecordingTime = computed(() => {
             <motion.div v-if="audioUrl && props.showResult" key="playback-section"
                 :initial="{ opacity: 0, y: 30, scale: 0.9 }" :animate="{ opacity: 1, y: 0, scale: 1 }"
                 :exit="{ opacity: 0, y: -30, scale: 0.9 }" :transition="{ duration: 0.5, type: 'spring', bounce: 0.2 }"
-                class="mt-8 bg-green-50 dark:bg-green-900/20 rounded-2xl p-6 border border-green-200/50 dark:border-green-700/50">
+                class="mt-8 bg-green-50 rounded-2xl p-6 border border-green-200/50">
                 <motion.div class="text-center space-y-4" :initial="{ y: 20 }" :animate="{ y: 0 }"
                     :transition="{ delay: 0.2 }">
                     <motion.div class="flex items-center justify-center gap-2 mb-4" :initial="{ opacity: 0 }"
@@ -133,17 +131,11 @@ const formattedRecordingTime = computed(() => {
                         <audio :src="audioUrl" controls class="w-full h-12 rounded-lg shadow-sm"></audio>
                     </motion.div>
 
-                    <motion.a :href="audioUrl" :download="`recording-${new Date().toISOString()}.webm`"
-                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
-                        :whileHover="{ scale: 1.05, y: -2 }" :whileTap="{ scale: 0.95 }"
-                        :transition="{ type: 'spring', stiffness: 400, damping: 17 }">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                            </path>
-                        </svg>
-                        {{ t('audio-recorder.audio.downloadRecording') }}
-                    </motion.a>
+                    <a :href="audioUrl" :download="`recording-${new Date().toISOString()}.webm`">
+                        <UButton icon="i-lucide-download" color="primary" variant="solid">
+                            {{ t('audio-recorder.audio.downloadRecording') }}
+                        </UButton>
+                    </a>
                 </motion.div>
             </motion.div>
         </AnimatePresence>
