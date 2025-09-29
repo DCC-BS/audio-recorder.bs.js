@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useFFmpeg } from "../composables/audioConversion";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
+import { onMounted, ref } from "vue";
 
 const audioStorage = new AudioStorageService();
 

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { motion } from "motion-v";
 import { ref, watch } from "vue";
 
 const props = defineProps<{
@@ -86,12 +85,6 @@ function updateAudioVisualization(): void {
             ...averagedData.toReversed(),
             ...averagedData,
         ];
-
-        // // Transform frequency data to visualization values (0-100%)
-        // audioVisualization.value = Array.from(frequencyData.value)
-
-        //     .slice(0, 50)
-        //     .map((value) => (value / 255) * 100);
     } else {
         audioVisualization.value = [];
     }
@@ -99,23 +92,8 @@ function updateAudioVisualization(): void {
 </script>
 
 <template>
-    <div class="audio-visualization">
-        <motion.div layout v-for="(value, index) in audioVisualization" :key="index" :style="{ height: value + '%' }"
-            class="bar" :transition="{ duration: 0.1 }" />
+    <div class="flex justify-between items-center h-[50px] mt-[10px]">
+        <div v-for="(value, index) in audioVisualization" :key="index" :style="{ height: value + '%' }"
+            class="w-[2%] bg-primary" :transition="{ duration: 0.1 }" />
     </div>
 </template>
-
-<style scoped>
-.audio-visualization {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 50px;
-    margin-top: 10px;
-}
-
-.audio-visualization .bar {
-    width: 2%;
-    background-color: #4caf50;
-}
-</style>
