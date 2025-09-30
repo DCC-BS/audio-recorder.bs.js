@@ -1,4 +1,4 @@
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
 import {
@@ -91,6 +91,12 @@ export function useAudioRecording(options: Options = {}) {
         abandonedRecording.value = await audioStorage.getAllSessions();
     });
 
+    onUnmounted(() => {
+        if (isRecording.value) {
+            abortRecording();
+        }
+    });
+
     async function getWebmBlob(sessionId: string): Promise<Blob> {
         const blobs = await audioStorage.getSessionBlobs(sessionId);
         return new Blob(blobs, { type: "audio/webm" });
@@ -174,6 +180,14 @@ export function useAudioRecording(options: Options = {}) {
     function stopRecording(): void {
         if (mediaRecorder.value && isRecording.value) {
             isRecording.value = false;
+            mediaRecorder.value.stop();
+        }
+    }
+
+    function abortRecording(): void {
+        if (mediaRecorder.value && isRecording.value) {
+            isRecording.value = false;
+            mediaRecorder.value.onstop = null;
             mediaRecorder.value.stop();
         }
     }
