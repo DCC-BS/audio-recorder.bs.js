@@ -13,7 +13,7 @@ import { useFFmpeg } from "./audioConversion";
  * @property storeToDbInterval - Interval in milliseconds to store audio blobs to the database (default: 30000 (30 seconds))
  * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
  */
-export type Options = {
+export type RecodingOptions = {
     onRecordingStarted?: (stream: MediaStream) => void;
     onRecordingStopped?: (audioBlob: Blob, audioUrl: string) => void;
     onError?: (error: string) => void;
@@ -22,7 +22,7 @@ export type Options = {
     logger?: (msg: string) => void;
 };
 
-const optionsDefault: Required<Options> = {
+const optionsDefault: Required<RecodingOptions> = {
     onRecordingStarted: () => {},
     onRecordingStopped: () => {},
     onError: () => {},
@@ -55,7 +55,7 @@ const optionsDefault: Required<Options> = {
  * });
  * ```
  */
-export function useAudioRecording(options: Options = {}) {
+export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
 
     const { convertWebmToMp3 } = useFFmpeg(opt.logger);

@@ -10,12 +10,12 @@ import { useFFmpeg } from "./audioConversion";
  * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
  * @property deleteOldSessionsDaysInterval - Number of days to keep old sessions before deletion (default: 7)
  */
-export type Options = {
+export type AudioSessionOptions = {
     deleteOldSessionsDaysInterval?: number;
     logger?: (msg: string) => void;
 };
 
-const optionsDefault: Required<Options> = {
+const optionsDefault: Required<AudioSessionOptions> = {
     deleteOldSessionsDaysInterval: 7,
     logger: (_: string) => {},
 };
@@ -25,7 +25,7 @@ export async function getAbandonedRecording(): Promise<AudioSession[]> {
     return audioStorage.getAllSessions();
 }
 
-export function useAudioSessions(options: Options = {}) {
+export function useAudioSessions(options: AudioSessionOptions = {}) {
     const opt = { ...optionsDefault, ...options };
 
     const isReady = ref(false);
