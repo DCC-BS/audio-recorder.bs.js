@@ -5,13 +5,12 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAudioRecording } from "../composables/audioRecording";
 
-
 import AudioVisualizer from "./AudioVisualizer.client.vue";
 
 interface Props {
     showResult?: boolean;
     autoStart?: boolean;
-    logger?: (msg: string) => void
+    logger?: (msg: string) => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
