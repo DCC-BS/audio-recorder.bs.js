@@ -1,8 +1,13 @@
-import { addComponentsDir, createResolver, defineNuxtModule } from "@nuxt/kit";
+import {
+    addComponentsDir,
+    addImportsDir,
+    createResolver,
+    defineNuxtModule,
+} from "@nuxt/kit";
 import type { ModuleRuntimeHooks } from "@nuxtjs/i18n";
 
 export * from "./runtime/composables/audioConversion";
-export * from "./runtime/composables/audioRecoding";
+export * from "./runtime/composables/audioRecording";
 export * from "./runtime/utils/microphone";
 
 export default defineNuxtModule<ModuleRuntimeHooks>({
@@ -36,6 +41,8 @@ export default defineNuxtModule<ModuleRuntimeHooks>({
             global: true,
             pathPrefix: false,
         });
+
+        addImportsDir(resolver.resolve("./runtime/composables"));
 
         if (!_nuxt.options.vite) {
             _nuxt.options.vite = {};

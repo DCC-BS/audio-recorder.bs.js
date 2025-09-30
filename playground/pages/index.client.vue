@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAudioRecording } from "../../src/runtime/composables/audioRecoding";
+import { useAudioRecording } from "../../src/runtime/composables/audioRecording";
 
 const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } =
     useAudioRecording({

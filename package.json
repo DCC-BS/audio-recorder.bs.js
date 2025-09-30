@@ -13,6 +13,11 @@
             "import": "./dist/module.mjs",
             "require": "./dist/module.mjs",
             "style": "./dist/main.css"
+        },
+        "./prelude": {
+            "types": "./dist/runtime/prelude.d.ts",
+            "import": "./dist/runtime/prelude.js",
+            "require": "./dist/runtime/prelude.js"
         }
     },
     "main": "./dist/module.mjs",

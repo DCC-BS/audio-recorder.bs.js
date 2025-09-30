@@ -207,13 +207,24 @@ export function useAudioRecording(options: Options = {}) {
                  * on Firefox there is a maximum of 10240 MB storage per origin
                  * => approx 531 hours of recordings
                  */
-                navigator.storage.estimate().then((estimate) => {
-                    if (!estimate.quota || !estimate.usage) return;
 
-                    const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-                    const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
-                    console.debug(`Using ${usageMB} MB out of ${quotaMB} MB.`);
-                });
+                if (import.meta.env.DEV) {
+                    navigator.storage.estimate().then((estimate) => {
+                        if (!estimate.quota || !estimate.usage) return;
+
+                        const usageMB = (
+                            estimate.usage /
+                            (1024 * 1024)
+                        ).toFixed(2);
+                        const quotaMB = (
+                            estimate.quota /
+                            (1024 * 1024)
+                        ).toFixed(2);
+                        console.debug(
+                            `Using ${usageMB} MB out of ${quotaMB} MB.`,
+                        );
+                    });
+                }
             } catch (e: unknown) {
                 const message = e instanceof Error ? e.message : String(e);
                 error.value = message;
