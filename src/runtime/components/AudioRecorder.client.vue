@@ -58,7 +58,7 @@ const formattedRecordingTime = computed(() => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 });
 
-export {
+defineExpose({
     isRecording,
     startRecording,
     stopRecording,
@@ -66,7 +66,7 @@ export {
     formattedRecordingTime,
     error,
     audioUrl,
-};
+});
 </script>
 
 <template>
