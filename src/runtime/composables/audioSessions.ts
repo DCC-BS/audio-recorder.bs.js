@@ -12,11 +12,13 @@ import { useFFmpeg } from "./audioConversion";
  */
 export type AudioSessionOptions = {
     deleteOldSessionsDaysInterval?: number;
+    maxSessionsToKeep?: number;
     logger?: (msg: string) => void;
 };
 
 const optionsDefault: Required<AudioSessionOptions> = {
     deleteOldSessionsDaysInterval: 7,
+    maxSessionsToKeep: 10,
     logger: (_: string) => {},
 };
 
@@ -38,6 +40,8 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         await audioStorage.clearSessionsOlderThan(
             opt.deleteOldSessionsDaysInterval,
         ); // days
+        
+        await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
         abandonedRecording.value = await audioStorage.getAllSessions();
         isReady.value = true;
     });

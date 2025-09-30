@@ -103,6 +103,23 @@ export class AudioStorageService {
         );
     }
 
+    public async clearSessionOverThreshold(maxSessions: number): Promise<void> {
+        const sessions = await db.audioSessions
+            .where("blobCount")
+            .aboveOrEqual(1)
+            .sortBy("createdAt");
+
+        if (sessions.length <= maxSessions) {
+            return; // Nothing to delete
+        }
+
+        const sessionsToDelete = sessions.slice(0, sessions.length - maxSessions);
+
+        for (const session of sessionsToDelete) {
+            await this.deleteSession(session.id);
+        }
+    }
+
     public async clearSessionsOlderThan(days: number): Promise<void> {
         const cutoffDateUTC = Date.now();
         const cutoffDate = new Date(cutoffDateUTC - days * 24 * 60 * 60 * 1000);
