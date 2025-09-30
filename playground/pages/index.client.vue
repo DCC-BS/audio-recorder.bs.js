@@ -25,7 +25,7 @@ async function downloadAudio(id: string) {
 </script>
 
 <template>
-    <div v-if="abandonedRecording.length > 0" class="text-center text-warning mt-5">
+    <div v-if="abandonedRecording && abandonedRecording.length > 0" class="text-center text-warning mt-5">
         <div class="text-3xl mb-4">⚠️ Found abandoned recordings ⚠️</div>
 
         <div v-for="value in abandonedRecording" :key="value.id">

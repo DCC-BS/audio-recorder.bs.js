@@ -80,7 +80,7 @@ export function useAudioRecording(options: Options = {}) {
     const audioUrl = ref<string>();
 
     const error = ref<string>();
-    const abandonedRecording = ref<AudioSession[]>([]);
+    const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
 
     let waitForAudioStoragePromise: Promise<void> | undefined;
 
@@ -111,9 +111,12 @@ export function useAudioRecording(options: Options = {}) {
 
     async function deleteAbandonedRecording(sessionId: string): Promise<void> {
         await audioStorage.deleteSession(sessionId);
-        abandonedRecording.value = abandonedRecording.value.filter(
-            (s) => s.id !== sessionId,
-        );
+
+        if(abandonedRecording.value){
+            abandonedRecording.value = abandonedRecording.value.filter(
+                (s) => s.id !== sessionId,
+            );
+        }
     }
 
     async function startRecording() {
