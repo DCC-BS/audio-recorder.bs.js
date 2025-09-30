@@ -57,6 +57,16 @@ const formattedRecordingTime = computed(() => {
     const seconds = recordingTime.value % 60;
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 });
+
+export {
+    isRecording,
+    startRecording,
+    stopRecording,
+    recordingTime,
+    formattedRecordingTime,
+    error,
+    audioUrl,
+};
 </script>
 
 <template>

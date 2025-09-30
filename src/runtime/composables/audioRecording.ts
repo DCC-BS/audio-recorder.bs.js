@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref } from "vue";
+import { onUnmounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
 import {
@@ -12,7 +12,6 @@ import { useFFmpeg } from "./audioConversion";
  * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
  * @property storeToDbInterval - Interval in milliseconds to store audio blobs to the database (default: 30000 (30 seconds))
  * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
- * @property deleteOldSessionsDaysInterval - Number of days to keep old sessions before deletion (default: 7)
  */
 export type Options = {
     onRecordingStarted?: (stream: MediaStream) => void;
@@ -20,7 +19,6 @@ export type Options = {
     onError?: (error: string) => void;
     storeToDbInterval?: number;
     mimeType?: string;
-    deleteOldSessionsDaysInterval?: number;
     logger?: (msg: string) => void;
 };
 
@@ -30,7 +28,6 @@ const optionsDefault: Required<Options> = {
     onError: () => {},
     storeToDbInterval: 30000, // 30000
     mimeType: "audio/webm;codecs=opus",
-    deleteOldSessionsDaysInterval: 7,
     logger: (_: string) => {},
 };
 
@@ -62,12 +59,10 @@ export function useAudioRecording(options: Options = {}) {
     const opt = { ...optionsDefault, ...options };
 
     const { convertWebmToMp3 } = useFFmpeg(opt.logger);
-
-    const audioStorage = new AudioStorageService();
-
     const isLoading = ref(false);
     const isRecording = ref(false);
     const mediaRecorder = ref<MediaRecorder>();
+    const audioStorage = new AudioStorageService();
 
     const recordingStartTime = ref(0);
     const recordingTime = ref(0);
@@ -84,40 +79,11 @@ export function useAudioRecording(options: Options = {}) {
 
     let waitForAudioStoragePromise: Promise<void> | undefined;
 
-    onMounted(async () => {
-        await audioStorage.clearSessionsOlderThan(
-            opt.deleteOldSessionsDaysInterval,
-        ); // days
-        abandonedRecording.value = await audioStorage.getAllSessions();
-    });
-
     onUnmounted(() => {
         if (isRecording.value) {
             abortRecording();
         }
     });
-
-    async function getWebmBlob(sessionId: string): Promise<Blob> {
-        const blobs = await audioStorage.getSessionBlobs(sessionId);
-        return new Blob(blobs, { type: "audio/webm" });
-    }
-
-    async function getMp3Blob(sessionId: string): Promise<Blob> {
-        const blobs = await audioStorage.getSessionBlobs(sessionId);
-        const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
-        return mp3Blob;
-    }
-
-    async function deleteAbandonedRecording(sessionId: string): Promise<void> {
-        await audioStorage.deleteSession(sessionId);
-
-        if (abandonedRecording.value) {
-            abandonedRecording.value = abandonedRecording.value.filter(
-                (s) => s.id !== sessionId,
-            );
-        }
-    }
 
     async function startRecording() {
         const availabilityResult = await checkMicrophoneAvailability();
@@ -309,7 +275,6 @@ export function useAudioRecording(options: Options = {}) {
         audioBlob,
         audioUrl,
         currentSession,
-        audioStorage,
         resetRecording,
         mediaRecorder,
         recordingInterval,
@@ -317,8 +282,5 @@ export function useAudioRecording(options: Options = {}) {
         elapsedTime,
         error,
         abandonedRecording,
-        getWebmBlob,
-        getMp3Blob,
-        deleteAbandonedRecording,
     };
 }

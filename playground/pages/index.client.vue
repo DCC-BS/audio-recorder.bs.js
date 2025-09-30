@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useAudioRecording } from "../../src/runtime/composables/audioRecording";
+import { useAudioSessions } from "../../src/runtime/composables/audioSessions";
 
 const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } =
-    useAudioRecording({
+    useAudioSessions({
         logger: console.log,
         deleteOldSessionsDaysInterval: 1, // 0.000694444444 = 1min
     });
