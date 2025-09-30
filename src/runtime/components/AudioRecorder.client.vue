@@ -81,10 +81,6 @@ defineExpose({
                         {{ t('audio-recorder.audio.startRecording') }}
                     </UButton>
                 </div>
-                <motion.p class="mt-4 text-slate-600 dark:text-slate-400 text-sm" :initial="{ opacity: 0 }"
-                    :animate="{ opacity: 1 }" :transition="{ delay: 0.3 }">
-                    Click to start your audio recording
-                </motion.p>
             </motion.div>
         </AnimatePresence>
 

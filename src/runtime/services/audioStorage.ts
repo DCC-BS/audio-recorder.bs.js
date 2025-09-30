@@ -113,7 +113,10 @@ export class AudioStorageService {
             return; // Nothing to delete
         }
 
-        const sessionsToDelete = sessions.slice(0, sessions.length - maxSessions);
+        const sessionsToDelete = sessions.slice(
+            0,
+            sessions.length - maxSessions,
+        );
 
         for (const session of sessionsToDelete) {
             await this.deleteSession(session.id);

@@ -40,7 +40,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         await audioStorage.clearSessionsOlderThan(
             opt.deleteOldSessionsDaysInterval,
         ); // days
-        
+
         await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
         abandonedRecording.value = await audioStorage.getAllSessions();
         isReady.value = true;
