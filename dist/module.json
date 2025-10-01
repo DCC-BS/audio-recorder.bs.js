@@ -1,0 +1,9 @@
+{
+  "name": "audio-recorder.bs.js",
+  "configKey": "audio-recorder.bs.js",
+  "version": "0.0.17",
+  "builder": {
+    "@nuxt/module-builder": "1.0.2",
+    "unbuild": "3.6.1"
+  }
+}
