@@ -120,8 +120,7 @@ defineExpose({
                 <motion.div :initial="{ opacity: 0, scale: 0.8 }" :animate="{ opacity: 1, scale: 1 }"
                     :transition="{ delay: 0.6, type: 'spring' }">
                     <div>
-                        <UButton color="secondary" icon="i-lucide-square" @click="stopRecording" size="xl"
-                            class="bg-red-500 hover:bg-red-600 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0">
+                        <UButton color="secondary" variant="link" icon="i-lucide-square" @click="stopRecording">
                             {{ t('audio-recorder.audio.stopRecording') }}
                         </UButton>
                     </div>
@@ -144,13 +143,12 @@ defineExpose({
                     </motion.div>
 
                     <motion.div
-                        class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 dark:border-slate-700/20"
                         :whileHover="{ scale: 1.02 }" :transition="{ type: 'spring', stiffness: 300 }">
-                        <audio :src="audioUrl" controls class="w-full h-12 rounded-lg shadow-sm"></audio>
+                        <audio :src="audioUrl" controls class="w-full"></audio>
                     </motion.div>
 
                     <a :href="audioUrl" :download="`recording-${new Date().toISOString()}.webm`">
-                        <UButton icon="i-lucide-download" color="primary" variant="solid">
+                        <UButton icon="i-lucide-download" color="primary" variant="link">
                             {{ t('audio-recorder.audio.downloadRecording') }}
                         </UButton>
                     </a>

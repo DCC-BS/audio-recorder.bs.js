@@ -5,6 +5,12 @@
 
 Audio Recorder is a powerful Nuxt.js module that provides advanced audio recording, processing, and management capabilities for web applications. This module includes Vue components, composables, and utilities for seamless audio recording integration with client-side storage and audio format conversion.
 
+<div align="center">
+  <img src="./_img/showcase1.png" alt="Audio Recorder Logo" width="200" />
+  <img src="./_img/showcase2.png" alt="Audio Recorder Logo" width="200" />
+  <img src="./_img/showcase3.png" alt="Audio Recorder Logo" width="200" />
+</div>
+
 ## Features
 
 - **Audio Recording**: Web-based audio recording with MediaRecorder API integration
@@ -65,6 +71,9 @@ add the following line to your main CSS file:
 <template>
   <div>
     <AudioRecorder 
+      :show-result="true"
+      :auto-start="false"
+      :logger="customLogger"
       @recording-started="onRecordingStarted"
       @recording-stopped="onRecordingStopped"
     />
@@ -72,6 +81,10 @@ add the following line to your main CSS file:
 </template>
 
 <script setup>
+function customLogger(message) {
+  console.log('[AudioRecorder]:', message)
+}
+
 function onRecordingStarted(stream) {
   console.log('Recording started:', stream)
 }
@@ -135,6 +148,130 @@ async function downloadAudio(sessionId) {
 ```
 
 ## Components
+
+### AudioRecorder
+
+The main recording component with start/stop controls and audio visualization.
+
+#### Props
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `showResult` | `boolean` | `true` | Whether to show the playback section after recording is complete |
+| `autoStart` | `boolean` | `false` | Automatically start recording when the component is mounted |
+| `logger` | `(msg: string) => void` | `undefined` | Optional custom logging function for debugging |
+
+#### Events
+
+| Event | Parameters | Description |
+|-------|------------|-------------|
+| `recording-started` | `stream: MediaStream` | Emitted when recording starts successfully |
+| `recording-stopped` | `audioBlob: Blob, audioUrl: string` | Emitted when recording stops with the audio data |
+
+#### Exposed Methods & Properties
+
+The component exposes the following methods and reactive properties via template refs:
+
+| Property/Method | Type | Description |
+|-----------------|------|-------------|
+| `isRecording` | `Ref<boolean>` | Reactive boolean indicating if recording is in progress |
+| `startRecording` | `() => Promise<void>` | Method to start audio recording |
+| `stopRecording` | `() => Promise<void>` | Method to stop audio recording |
+| `recordingTime` | `Ref<number>` | Recording time in seconds |
+| `formattedRecordingTime` | `ComputedRef<string>` | Formatted recording time as "MM:SS" |
+| `error` | `Ref<string \| null>` | Current error message, if any |
+| `audioUrl` | `Ref<string \| null>` | URL of the recorded audio blob |
+
+#### Usage with Template Ref
+
+```vue
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import type { AudioRecorder } from '#components';
+
+const recorderRef = ref<typeof AudioRecorder>()
+
+const isRecording = computed(() => recorderRef.value?.isRecording)
+const formattedTime = computed(() => recorderRef.value?.formattedRecordingTime)
+
+function startRecording() {
+  recorderRef.value?.startRecording()
+}
+
+function stopRecording() {
+  recorderRef.value?.stopRecording()
+}
+</script>
+
+<template>
+  <div>
+    <AudioRecorder ref="recorderRef" />
+    <button @click="startRecording">Start</button>
+    <button @click="stopRecording">Stop</button>
+    <p>Recording: {{ isRecording }}</p>
+    <p>Time: {{ formattedTime }}</p>
+  </div>
+</template>
+```
+
+### AudioVisualizer
+
+Real-time audio waveform visualization component that displays frequency data as animated bars.
+
+#### Props
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `stream` | `MediaStream \| undefined` | Yes | The audio stream to visualize |
+| `isRecording` | `boolean` | Yes | Whether recording is currently active (controls visualization updates) |
+
+#### Events
+
+This component does not emit any events.
+
+#### Exposed Methods & Properties
+
+This component does not expose any methods or properties via `defineExpose`.
+
+#### Usage
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const audioStream = ref<MediaStream>()
+const recordingState = ref(false)
+
+// Get stream from getUserMedia or other source
+navigator.mediaDevices.getUserMedia({ audio: true })
+  .then(stream => {
+    audioStream.value = stream
+    recordingState.value = true
+  })
+</script>
+
+<template>
+  <div>
+    <AudioVisualizer 
+      :stream="audioStream" 
+      :is-recording="recordingState" 
+    />
+  </div>
+</template>
+```
+
+#### Technical Details
+
+- Uses Web Audio API with `AudioContext` and `AnalyserNode`
+- FFT size: 256 for frequency analysis
+- Updates visualization every 50ms when recording
+- Displays 25 frequency bars (mirrored for visual symmetry)
+- Automatically cleans up audio context when recording stops
+- Responsive design with bars scaling based on frequency amplitude
+
+### AudioSessionExplorer
+
+Browse and manage audio sessions component.
 
 - **AudioRecorder**: Main recording component with start/stop controls
 - **AudioVisualizer**: Real-time audio waveform visualization
