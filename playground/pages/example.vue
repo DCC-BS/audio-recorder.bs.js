@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import AudioRecorder from '../../src/runtime/components/AudioRecorder.client.vue';
+import { computed, ref } from "vue";
+import type AudioRecorder from "../../src/runtime/components/AudioRecorder.client.vue";
 
-const recorderRef = ref<InstanceType<typeof AudioRecorder>>()
+const recorderRef = ref<InstanceType<typeof AudioRecorder>>();
 
-const isRecording = computed(() => recorderRef.value?.isRecording)
-const formattedTime = computed(() => recorderRef.value?.formattedRecordingTime)
+const isRecording = computed(() => recorderRef.value?.isRecording);
+const formattedTime = computed(() => recorderRef.value?.formattedRecordingTime);
 
 function startRecording() {
-  recorderRef.value?.startRecording()
+    recorderRef.value?.startRecording();
 }
 
 function stopRecording() {
-  recorderRef.value?.stopRecording()
+    recorderRef.value?.stopRecording();
 }
 </script>
 
