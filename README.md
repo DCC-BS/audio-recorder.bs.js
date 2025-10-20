@@ -58,6 +58,17 @@ export default defineNuxtConfig({
 })
 ```
 
+under the vite config in `nuxt.config.ts` configure dexie:
+```ts
+vite: {
+    resolve: {
+        alias: {
+            dexie: "dexie/dist/dexie.mjs",
+        },
+    },
+}
+```
+
 add the following line to your main CSS file:
 ```css
 @import '@dcc-bs/audio-recorder.bs.js';
