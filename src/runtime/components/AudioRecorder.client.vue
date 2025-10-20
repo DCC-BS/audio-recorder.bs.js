@@ -139,7 +139,7 @@ defineExpose({
                     <motion.div class="flex items-center justify-center gap-2 mb-4" :initial="{ opacity: 0 }"
                         :animate="{ opacity: 1 }" :transition="{ delay: 0.3 }">
                         <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span class="text-green-700 dark:text-green-300 font-medium">Recording Complete</span>
+                        <span class="text-green-700 dark:text-green-300 font-medium">{{ t('audio-recorder.audio.recordingComplete') }} </span>
                     </motion.div>
 
                     <motion.div

@@ -3,6 +3,7 @@
         "audio": {
             "startRecording": "Aufnahme starten",
             "recordingInProgress": "Aufnahme läuft...",
+            "recordingComplete": "Aufnahme abgeschlossen",
             "stopRecording": "Aufnahme stoppen",
             "downloadRecording": "Aufnahme herunterladen",
             "errors": {

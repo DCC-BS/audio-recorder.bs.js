@@ -4,6 +4,7 @@
             "startRecording": "Start Recording",
             "recordingInProgress": "Recording in progress...",
             "stopRecording": "Stop Recording",
+            "recordingComplete": "Recording Complete",
             "downloadRecording": "Download Recording",
             "errors": {
                 "noMicrophoneFound": "No microphone found.",
