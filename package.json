@@ -46,7 +46,7 @@
         "@nuxt/kit": "4.2.0",
         "@nuxtjs/i18n": "10.1.2",
         "dexie": "4.2.1",
-        "rollup-plugin-import-css": "4.1.0"
+        "rollup-plugin-import-css": "4.1.1"
     },
     "devDependencies": {
         "@biomejs/biome": "2.3.2",
