@@ -16,7 +16,8 @@
                     "restart": "Restart your browser or device."
                 }
             },
-            "recordingTime": "Recording time"
+            "recordingTime": "Recording time",
+            "newRecording": "New recording {date}"
         },
         "sessionExplorer": {
             "title": "Audio Sessions",

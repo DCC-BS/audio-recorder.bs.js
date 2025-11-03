@@ -16,7 +16,8 @@
                     "restart": "Starten Sie Ihren Browser oder Ihr Gerät neu."
                 }
             },
-            "recordingTime": "Aufnahmezeit"
+            "recordingTime": "Aufnahmezeit",
+            "newRecording": "Neue Aufnahme {date}"
         },
         "sessionExplorer": {
             "title": "Audio-Sitzungen",
@@ -24,12 +25,13 @@
             "loading": "Sitzungen werden geladen...",
             "emptyTitle": "Keine Audio-Sitzungen gefunden",
             "emptySubtitle": "Starten Sie eine Aufnahme, um Ihre erste Audio-Sitzung zu erstellen",
-            "size": "MB Gesamtgröße",
+            "size": "MB Gesamtgrösse",
             "downloadMp3": "MP3 herunterladen",
             "downloading": "Wird heruntergeladen...",
             "delete": "Löschen",
             "deleting": "Wird gelöscht...",
-            "count": "eine Sitzung insgesamt | {count} Sitzungen insgesamt"
+            "count": "eine Sitzung insgesamt | {count} Sitzungen insgesamt",
+            "sessionId": "Sitzungs-ID"
         }
     }
 }

@@ -6,7 +6,7 @@ import {
     handleMicrophoneError,
 } from "../utils/microphone";
 import { useFFmpeg } from "./audioConversion";
-
+import { useI18n } from "vue-i18n";
 /**
  * Options for audio recording
  * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
@@ -23,12 +23,12 @@ export type RecodingOptions = {
 };
 
 const optionsDefault: Required<RecodingOptions> = {
-    onRecordingStarted: () => {},
-    onRecordingStopped: () => {},
-    onError: () => {},
+    onRecordingStarted: () => { },
+    onRecordingStopped: () => { },
+    onError: () => { },
     storeToDbInterval: 30000, // 30000
     mimeType: "audio/webm;codecs=opus",
-    logger: (_: string) => {},
+    logger: (_: string) => { },
 };
 
 /**
@@ -57,7 +57,7 @@ const optionsDefault: Required<RecodingOptions> = {
  */
 export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
-
+    const { t } = useI18n();
     const { convertWebmToMp3 } = useFFmpeg(opt.logger);
     const isLoading = ref(false);
     const isRecording = ref(false);
@@ -100,7 +100,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             });
 
             currentSession.value = await audioStorage.createSession(
-                `New Recording ${new Date().toLocaleString()}`,
+                `${t('audio-recorder.audio.newRecording', { date: new Date().toLocaleString() })}`,
             );
 
             // Initialize visualization
@@ -138,7 +138,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             recordingInterval.value = setInterval(() => {
                 recordingTime.value = Math.floor(
                     (Date.now() - recordingStartTime.value) / 1000 +
-                        elapsedTime.value,
+                    elapsedTime.value,
                 );
             }, 1000);
         } catch (e) {
@@ -165,8 +165,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         event: BlobEvent,
     ): Promise<void> {
         if (event.data.size > 0) {
-            let resolve: () => void = () => {};
-            let reject: (reason?: unknown) => void = () => {};
+            let resolve: () => void = () => { };
+            let reject: (reason?: unknown) => void = () => { };
 
             waitForAudioStoragePromise = new Promise((res, rej) => {
                 resolve = res;
