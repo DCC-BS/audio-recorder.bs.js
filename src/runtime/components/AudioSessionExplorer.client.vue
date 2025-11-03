@@ -43,8 +43,11 @@ async function downloadAudio(sessionId: string): Promise<void> {
     downloadingSessionId.value = sessionId;
     try {
         const blobs = await audioStorage.getSessionBlobs(sessionId);
+        if (!blobs || blobs.length === 0) {
+            throw new Error("No audio chunks found for this session");
+        }
         const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+        const mp3Blob = await convertWebmToMp3(webmBlob, `session-${sessionId}`);
         const url = URL.createObjectURL(mp3Blob);
         const a = document.createElement("a");
         a.href = url;
@@ -75,7 +78,6 @@ function formatDate(dateString: string): string {
         <motion.div :initial="{ opacity: 0, y: -20 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.6 }"
             class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                <UIcon name="i-lucide-audio-waveform" class="inline-block mr-3 text-primary-500" />
                 {{ t('audio-recorder.sessionExplorer.title') }}
             </h1>
             <p class="text-gray-600 dark:text-gray-400">
@@ -94,7 +96,7 @@ function formatDate(dateString: string): string {
         <!-- Empty State -->
         <motion.div v-else-if="sessions.length === 0" :initial="{ opacity: 0, scale: 0.9 }"
             :animate="{ opacity: 1, scale: 1 }" :transition="{ duration: 0.5 }" class="text-center py-16">
-            <UIcon name="i-lucide-music" class="text-6xl text-gray-400 dark:text-gray-600 mb-4" />
+            <UIcon name="i-lucide-music" class="text-2xl text-gray-400 dark:text-gray-600 mb-4" />
             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 {{ t('audio-recorder.sessionExplorer.emptyTitle') }}
             </h3>

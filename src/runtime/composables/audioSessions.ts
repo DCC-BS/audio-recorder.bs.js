@@ -54,7 +54,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     async function getMp3Blob(sessionId: string): Promise<Blob> {
         const blobs = await audioStorage.getSessionBlobs(sessionId);
         const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+        const mp3Blob = await convertWebmToMp3(webmBlob, `session-${sessionId}`);
         return mp3Blob;
     }
 

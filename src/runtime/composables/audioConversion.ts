@@ -40,8 +40,12 @@ export function useFFmpeg(logger?: (msg: string) => void) {
             const data = await ffmpeg.readFile(mp3FileName);
             return toBlob(data, "audio/mp3");
         } finally {
-            await ffmpeg.deleteFile(webmFileName);
-            await ffmpeg.deleteFile(mp3FileName);
+            try {
+                await ffmpeg.deleteFile(webmFileName);
+            } catch {}
+            try {
+                await ffmpeg.deleteFile(mp3FileName);
+            } catch {}
         }
     }
 
