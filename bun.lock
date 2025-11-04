@@ -9,7 +9,7 @@
         "@nuxt/kit": "4.2.0",
         "@nuxtjs/i18n": "10.2.0",
         "dexie": "4.2.1",
-        "rollup-plugin-import-css": "4.1.1",
+        "rollup-plugin-import-css": "4.1.2",
       },
       "devDependencies": {
         "@biomejs/biome": "2.3.3",
@@ -1535,7 +1535,7 @@
 
     "rollup-plugin-dts": ["rollup-plugin-dts@6.2.3", "", { "dependencies": { "magic-string": "^0.30.17" }, "optionalDependencies": { "@babel/code-frame": "^7.27.1" }, "peerDependencies": { "rollup": "^3.29.4 || ^4", "typescript": "^4.5 || ^5.0" } }, "sha512-UgnEsfciXSPpASuOelix7m4DrmyQgiaWBnvI0TM4GxuDh5FkqW8E5hu57bCxXB90VvR1WNfLV80yEDN18UogSA=="],
 
-    "rollup-plugin-import-css": ["rollup-plugin-import-css@4.1.1", "", { "dependencies": { "@rollup/pluginutils": "^5.3.0" }, "peerDependencies": { "rollup": "^2.x.x || ^3.x.x || ^4.x.x" } }, "sha512-y6zEXBZ4HvpMYOtUoUG9+PfXT62IHXc6h07JmUG3fEDKt0OPE6WPEg1fHEzBlUriLOuIfl4oeb2zI+tNscjFhw=="],
+    "rollup-plugin-import-css": ["rollup-plugin-import-css@4.1.2", "", { "dependencies": { "@rollup/pluginutils": "^5.3.0" }, "peerDependencies": { "rollup": "^2.x.x || ^3.x.x || ^4.x.x" } }, "sha512-bIdDaQnED3P/Z++hoH9+iyLgmTc7h6F7XL/j51sdJA38IPJAubx3HhHNruI+C644iB74UFFXo85cr588H1LnCw=="],
 
     "rollup-plugin-visualizer": ["rollup-plugin-visualizer@6.0.5", "", { "dependencies": { "open": "^8.0.0", "picomatch": "^4.0.2", "source-map": "^0.7.4", "yargs": "^17.5.1" }, "peerDependencies": { "rolldown": "1.x || ^1.0.0-beta", "rollup": "2.x || 3.x || 4.x" }, "optionalPeers": ["rolldown", "rollup"], "bin": { "rollup-plugin-visualizer": "dist/bin/cli.js" } }, "sha512-9+HlNgKCVbJDs8tVtjQ43US12eqaiHyyiLMdBwQ7vSZPiHMysGNo2E88TAp1si5wx8NAoYriI2A5kuKfIakmJg=="],
 
