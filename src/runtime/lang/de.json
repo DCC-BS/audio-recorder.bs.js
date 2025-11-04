@@ -6,6 +6,7 @@
             "recordingComplete": "Aufnahme abgeschlossen",
             "stopRecording": "Aufnahme stoppen",
             "downloadRecording": "Aufnahme herunterladen",
+            "processingRecording": "Aufnahme wird verarbeitet... Dies kann bis zu 1 Minute dauern.",
             "errors": {
                 "noMicrophoneFound": "Kein Mikrofon gefunden.",
                 "accessDenied": "Mikrofonzugriff verweigert.",

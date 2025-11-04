@@ -61,6 +61,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     const { convertWebmToMp3 } = useFFmpeg(opt.logger);
     const isLoading = ref(false);
     const isRecording = ref(false);
+    const isProcessing = ref(false);
     const mediaRecorder = ref<MediaRecorder>();
     const audioStorage = new AudioStorageService();
 
@@ -221,6 +222,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
     async function handleStopRecording(stream: MediaStream): Promise<void> {
         try {
+            isProcessing.value = true;
             await waitForAudioStoragePromise;
 
             if (!currentSession.value) {
@@ -257,6 +259,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             const message = e instanceof Error ? e.message : String(e);
             error.value = message;
             opt.onError(message);
+        } finally {
+            isProcessing.value = false;
         }
     }
 
@@ -269,6 +273,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     return {
         isLoading,
         isRecording,
+        isProcessing,
         recordingTime,
         startRecording,
         stopRecording,

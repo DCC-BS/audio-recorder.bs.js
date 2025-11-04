@@ -6,6 +6,7 @@
             "stopRecording": "Stop Recording",
             "recordingComplete": "Recording Complete",
             "downloadRecording": "Download Recording",
+            "processingRecording": "Processing your recording... This may take up to 1 minute.",
             "errors": {
                 "noMicrophoneFound": "No microphone found.",
                 "accessDenied": "Microphone access denied.",
