@@ -38,6 +38,6 @@ async function downloadAudio(id: string) {
     </div>
 
     <div class="flex justify-center mt-10">
-        <AudioRecorder />
+        <AudioRecorder :logger="console.log" />
     </div>
 </template>
