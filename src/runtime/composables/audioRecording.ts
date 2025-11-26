@@ -18,7 +18,6 @@ export type RecodingOptions = {
     onRecordingStopped?: (audioBlob: Blob, audioUrl: string) => void;
     onError?: (error: string) => void;
     storeToDbInterval?: number;
-    mimeType?: string;
     logger?: (msg: string) => void;
 };
 
@@ -27,7 +26,6 @@ const optionsDefault: Required<RecodingOptions> = {
     onRecordingStopped: () => { },
     onError: () => { },
     storeToDbInterval: 30000, // 30000
-    mimeType: "audio/webm;codecs=opus",
     logger: (_: string) => { },
 };
 
@@ -58,7 +56,7 @@ const optionsDefault: Required<RecodingOptions> = {
 export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { t } = useI18n();
-    const { convertWebmToMp3 } = useFFmpeg(opt.logger);
+    const { convertAudioToMp3 } = useFFmpeg(opt.logger);
     const isLoading = ref(false);
     const isRecording = ref(false);
     const isProcessing = ref(false);
@@ -95,6 +93,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             return;
         }
 
+        error.value = "";
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
@@ -102,6 +102,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
             currentSession.value = await audioStorage.createSession(
                 `${t('audio-recorder.audio.newRecording', { date: new Date().toLocaleString() })}`,
+                mediaRecorder.value?.mimeType ?? "audio/webm"
             );
 
             // Initialize visualization
@@ -112,9 +113,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             isRecording.value = true;
 
             // Create a new MediaRecorder instance
-            mediaRecorder.value = new MediaRecorder(stream, {
-                mimeType: options.mimeType,
-            });
+            mediaRecorder.value = new MediaRecorder(stream);
 
             // Setup for iOS background audio
             if ("mediaSession" in navigator) {
@@ -123,6 +122,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                     artist: "Transcribo",
                     album: "Transcribo",
                 });
+
+                navigator.mediaSession.playbackState = "none";
             }
 
             // Add event handlers
@@ -191,7 +192,6 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                  * on Firefox there is a maximum of 10240 MB storage per origin
                  * => approx 531 hours of recordings
                  */
-
                 if (import.meta.env.DEV) {
                     navigator.storage.estimate().then((estimate) => {
                         if (!estimate.quota || !estimate.usage) return;
@@ -223,6 +223,12 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     async function handleStopRecording(stream: MediaStream): Promise<void> {
         try {
             isProcessing.value = true;
+
+            // Release microphone
+            for (const track of stream.getTracks()) {
+                track.stop();
+            }
+            
             await waitForAudioStoragePromise;
 
             if (!currentSession.value) {
@@ -234,17 +240,14 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                 currentSession.value,
             );
 
-            const webmBlob = new Blob(blobs, { type: options.mimeType });
-            const mp3Blob = await convertWebmToMp3(webmBlob, "recording");
+            opt.logger(`Number of blobs: ${blobs.length}`);
+
+            const inputBlob = new Blob(blobs, { type: mediaRecorder.value?.mimeType });
+            const mp3Blob = await convertAudioToMp3(inputBlob, "recording");
 
             // Update state with processed audio
             audioBlob.value = mp3Blob;
             audioUrl.value = URL.createObjectURL(mp3Blob);
-
-            // Release microphone
-            for (const track of stream.getTracks()) {
-                track.stop();
-            }
 
             // Clear recording timer
             if (recordingInterval.value) {
@@ -267,6 +270,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     function resetRecording(): void {
         audioBlob.value = undefined;
         audioUrl.value = "";
+        error.value = "";
         recordingTime.value = 0;
     }
 

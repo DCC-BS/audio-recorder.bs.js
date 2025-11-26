@@ -6,7 +6,7 @@ export class AudioStorageService {
         return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
 
-    public async createSession(name?: string): Promise<string> {
+    public async createSession(name: string, mimeType: string): Promise<string> {
         const id = this.generateId();
         const now = new Date(Date.now()).toISOString();
 
@@ -17,6 +17,7 @@ export class AudioStorageService {
             blobCount: 0,
             totalSize: 0,
             blobIds: [],
+            mimeType,
         });
 
         return id;

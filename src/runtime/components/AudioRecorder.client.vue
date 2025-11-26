@@ -10,6 +10,7 @@ import AudioVisualizer from "./AudioVisualizer.client.vue";
 interface Props {
     showResult?: boolean;
     autoStart?: boolean;
+    storeToDbInterval?: number;
     logger?: (msg: string) => void;
 }
 
@@ -17,6 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
     showResult: true,
     autoStart: false,
     logger: undefined,
+    storeToDbInterval: 10,
 });
 
 const emit = defineEmits<{
@@ -43,7 +45,7 @@ const {
     onRecordingStopped: (audioBlob: Blob, audioUrl: string) => {
         emit("recording-stopped", audioBlob, audioUrl);
     },
-    storeToDbInterval: 10,
+    storeToDbInterval: props.storeToDbInterval * 1000,
     logger: props.logger,
 });
 

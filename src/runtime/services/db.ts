@@ -17,6 +17,7 @@ export interface AudioSession {
     createdAt: string;
     blobCount: number;
     totalSize: number;
+    mimeType: string;
     blobIds: string[];
 }
 

@@ -1,6 +1,5 @@
 import { FFmpeg, type LogEvent } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
-import { mixLinearColor } from "motion-v";
 
 function toBlob(data: Uint8Array | string, mimeType: string): Blob {
     if (typeof data === "string") {
@@ -40,20 +39,18 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         });
     }
 
-    const loadPromise = ffmpeg.load();
-
-    async function convertWebmToMp3(
+    async function convertAudioToMp3(
         inputBlob: Blob,
         fileName: string,
     ): Promise<Blob> {
-        await loadPromise;
+        await ffmpeg.load();
 
         const ext = mimeTypeToFileExtension(inputBlob.type);
 
         const inputFileName = `${fileName}.${ext}`;
         const mp3FileName = `${fileName}.mp3`;
 
-        try {
+        try {            
             await ffmpeg.writeFile(inputFileName, await fetchFile(inputBlob));
             await ffmpeg.exec(["-i", inputFileName, mp3FileName]);
             const data = await ffmpeg.readFile(mp3FileName);
@@ -69,6 +66,6 @@ export function useFFmpeg(logger?: (msg: string) => void) {
     }
 
     return {
-        convertWebmToMp3,
+        convertAudioToMp3,
     };
 }

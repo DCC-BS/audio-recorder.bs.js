@@ -34,7 +34,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
 
-    const { convertWebmToMp3 } = useFFmpeg(opt.logger);
+    const { convertAudioToMp3 } = useFFmpeg(opt.logger);
 
     onMounted(async () => {
         await audioStorage.clearSessionsOlderThan(
@@ -53,8 +53,8 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
 
     async function getMp3Blob(sessionId: string): Promise<Blob> {
         const blobs = await audioStorage.getSessionBlobs(sessionId);
-        const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, `session-${sessionId}`);
+        const audioBlob = new Blob(blobs, { type: blobs[0]?.type });
+        const mp3Blob = await convertAudioToMp3(audioBlob, `session-${sessionId}`);
         return mp3Blob;
     }
 
