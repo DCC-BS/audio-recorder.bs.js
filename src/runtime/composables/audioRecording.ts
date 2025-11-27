@@ -99,7 +99,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             });
 
             audioContext = new AudioContext({
-                sampleRate: 48000, // or let the browser choose
+                sampleRate: 16000, // or let the browser choose
             });
 
             await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
@@ -140,6 +140,14 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
             startTime();
 
+            let debugCounter = 0;
+            let startUsage = 0;
+            navigator.storage.estimate().then((estimate) => {
+                if(!estimate.usage) { return};
+                startUsage = (estimate.usage /
+                                (1024 * 1024));
+            });
+
             // Receive raw PCM frames from the worklet
             pcmWorklet.port.onmessage = async (event) => {
                 if (event.data.type === "data") {
@@ -152,20 +160,23 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                             console.error("Error storing audio chunk:", e);
                         });
 
-                    if (import.meta.env.DEV) {
+                    if (import.meta.env.DEV && debugCounter++ % 500 === 0) {
                         navigator.storage.estimate().then((estimate) => {
                             if (!estimate.quota || !estimate.usage) return;
 
-                            const usageMB = (
-                                estimate.usage /
-                                (1024 * 1024)
-                            ).toFixed(2);
+                            const usageMB = estimate.usage / (1024 * 1024);
                             const quotaMB = (
                                 estimate.quota /
                                 (1024 * 1024)
                             ).toFixed(2);
+
+                            const diff = usageMB - startUsage;
+                            const diffGB = (diff / 1024).toFixed(2);
+
+                            opt.logger( `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`);
+
                             console.debug(
-                                `Using ${usageMB} MB out of ${quotaMB} MB.`,
+                                `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
                             );
                         });
                     }
