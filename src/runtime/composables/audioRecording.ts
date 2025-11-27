@@ -1,12 +1,15 @@
 import { onUnmounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
-import type { AudioSession } from "../services/db";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
 import { useFFmpeg } from "./audioConversion";
 import { useI18n } from "vue-i18n";
+
+import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
+import { useRecordingTime } from "./useRecodingTime";
+
 /**
  * Options for audio recording
  * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
@@ -22,11 +25,11 @@ export type RecodingOptions = {
 };
 
 const optionsDefault: Required<RecodingOptions> = {
-    onRecordingStarted: () => { },
-    onRecordingStopped: () => { },
-    onError: () => { },
+    onRecordingStarted: () => {},
+    onRecordingStopped: () => {},
+    onError: () => {},
     storeToDbInterval: 30000, // 30000
-    logger: (_: string) => { },
+    logger: (_: string) => {},
 };
 
 /**
@@ -56,27 +59,23 @@ const optionsDefault: Required<RecodingOptions> = {
 export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { t } = useI18n();
-    const { convertAudioToMp3 } = useFFmpeg(opt.logger);
     const isLoading = ref(false);
     const isRecording = ref(false);
     const isProcessing = ref(false);
-    const mediaRecorder = ref<MediaRecorder>();
     const audioStorage = new AudioStorageService();
 
-    const recordingStartTime = ref(0);
-    const recordingTime = ref(0);
-    const elapsedTime = ref(0);
+    const { startTime, stopTime, recordingTime } = useRecordingTime();
 
-    const recordingInterval = ref<NodeJS.Timeout>();
     const currentSession = ref<string>();
 
-    const audioBlob = ref<Blob>();
-    const audioUrl = ref<string>();
+    let stream: MediaStream | undefined;
+    let audioContext: AudioContext | undefined;
+    let pcmWorklet: AudioWorkletNode | undefined;
+    let source: MediaStreamAudioSourceNode | undefined;
 
     const error = ref<string>();
-    const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
-
-    let waitForAudioStoragePromise: Promise<void> | undefined;
+    const audioBlob = ref<Blob>();
+    const audioUrl = ref<string>();
 
     onUnmounted(() => {
         if (isRecording.value) {
@@ -93,16 +92,37 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             return;
         }
 
-        error.value = "";
+        resetRecording();
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+            stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
             });
 
+            audioContext = new AudioContext({
+                sampleRate: 48000, // or let the browser choose
+            });
+
+            await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
+            source = audioContext.createMediaStreamSource(stream);
+
+            pcmWorklet = new AudioWorkletNode(
+                audioContext,
+                "pcm-recorder",
+                {
+                    numberOfInputs: 1,
+                    numberOfOutputs: 1,
+                    channelCount: 1,
+                },
+            );
+
+            source.connect(pcmWorklet);
+            pcmWorklet.connect(audioContext.destination); // or audioContext.createGain() if you don’t want local playback
+
             currentSession.value = await audioStorage.createSession(
-                `${t('audio-recorder.audio.newRecording', { date: new Date().toLocaleString() })}`,
-                mediaRecorder.value?.mimeType ?? "audio/webm"
+                `${t("audio-recorder.audio.newRecording", { date: new Date().toLocaleString() })}`,
+                audioContext.sampleRate,
+                1,
             );
 
             // Initialize visualization
@@ -111,9 +131,6 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             // Update UI state
             isLoading.value = false;
             isRecording.value = true;
-
-            // Create a new MediaRecorder instance
-            mediaRecorder.value = new MediaRecorder(stream);
 
             // Setup for iOS background audio
             if ("mediaSession" in navigator) {
@@ -126,152 +143,106 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                 navigator.mediaSession.playbackState = "none";
             }
 
-            // Add event handlers
-            mediaRecorder.value.ondataavailable = handleRecordingDataAvailable;
-            mediaRecorder.value.onstop = async () =>
-                await handleStopRecording(stream);
+            startTime();
 
-            // Start recording
-            mediaRecorder.value.start(opt.storeToDbInterval);
-            recordingStartTime.value = Date.now();
-            recordingTime.value = 0;
+            // Receive raw PCM frames from the worklet
+            pcmWorklet.port.onmessage = async (event) => {
+                if (event.data.type === "data") {
+                    audioStorage.storeAudioChunk(
+                        currentSession.value as string,
+                        event.data.samples as Float32Array,
+                    );
 
-            // Start the timer to display recording duration
-            recordingInterval.value = setInterval(() => {
-                recordingTime.value = Math.floor(
-                    (Date.now() - recordingStartTime.value) / 1000 +
-                    elapsedTime.value,
-                );
-            }, 1000);
+                    if (import.meta.env.DEV) {
+                        navigator.storage.estimate().then((estimate) => {
+                            if (!estimate.quota || !estimate.usage) return;
+
+                            const usageMB = (
+                                estimate.usage /
+                                (1024 * 1024)
+                            ).toFixed(2);
+                            const quotaMB = (
+                                estimate.quota /
+                                (1024 * 1024)
+                            ).toFixed(2);
+                            console.debug(
+                                `Using ${usageMB} MB out of ${quotaMB} MB.`,
+                            );
+                        });
+                    }
+                }
+            };
         } catch (e) {
+            console.error(e);
             error.value = handleMicrophoneError(e as Error);
         }
     }
 
-    function stopRecording(): void {
-        if (mediaRecorder.value && isRecording.value) {
-            isRecording.value = false;
-            mediaRecorder.value.stop();
+    async function stopRecording(): Promise<void> {
+        await abortRecording();
+        isProcessing.value = true;
+
+        if(!currentSession.value) {
+            throw new Error("No active session for recording");
         }
+
+        const session = await audioStorage.getSession(currentSession.value);
+        if(!session) {
+            throw new Error(`Session with ID ${currentSession.value} not found`);
+        }
+        const pcmData = await audioStorage.getPcmData(currentSession.value)
+
+        // Convert Float32 -> 16‑bit PCM and wrap into a WAV Blob
+        const { pcmToMp3 } = useFFmpeg(opt.logger);
+        const mp3Blob = await pcmToMp3(pcmData, session.sampleRate, session.numChannels);
+
+        audioBlob.value = mp3Blob;
+        audioUrl.value = URL.createObjectURL(mp3Blob);
+
+        if (!currentSession.value) {
+            throw new Error("No active session for recording");
+        }
+        // Update state with processed audio
+
+        audioStorage.deleteSession(currentSession.value);
+        opt.onRecordingStopped(audioBlob.value, audioUrl.value);
+
+        isProcessing.value = false;
     }
 
-    function abortRecording(): void {
-        if (mediaRecorder.value && isRecording.value) {
-            isRecording.value = false;
-            mediaRecorder.value.onstop = null;
-            mediaRecorder.value.stop();
-        }
-    }
-
-    async function handleRecordingDataAvailable(
-        event: BlobEvent,
-    ): Promise<void> {
-        if (event.data.size > 0) {
-            let resolve: () => void = () => { };
-            let reject: (reason?: unknown) => void = () => { };
-
-            waitForAudioStoragePromise = new Promise((res, rej) => {
-                resolve = res;
-                reject = rej;
-            });
-
-            try {
-                if (!currentSession.value) {
-                    throw new Error("No active session for recording");
-                }
-
-                await audioStorage.storeAudioBlob(
-                    currentSession.value,
-                    event.data,
-                );
-
-                /**
-                 * From my measurements:
-                 * 0.32 MB average per minute
-                 * 19.26 MB average per hour
-                 * on Firefox there is a maximum of 10240 MB storage per origin
-                 * => approx 531 hours of recordings
-                 */
-                if (import.meta.env.DEV) {
-                    navigator.storage.estimate().then((estimate) => {
-                        if (!estimate.quota || !estimate.usage) return;
-
-                        const usageMB = (
-                            estimate.usage /
-                            (1024 * 1024)
-                        ).toFixed(2);
-                        const quotaMB = (
-                            estimate.quota /
-                            (1024 * 1024)
-                        ).toFixed(2);
-                        console.debug(
-                            `Using ${usageMB} MB out of ${quotaMB} MB.`,
-                        );
-                    });
-                }
-            } catch (e: unknown) {
-                const message = e instanceof Error ? e.message : String(e);
-                error.value = message;
-                opt.onError(message);
-                reject(e);
-            } finally {
-                resolve();
-            }
-        }
-    }
-
-    async function handleStopRecording(stream: MediaStream): Promise<void> {
-        try {
-            isProcessing.value = true;
-
-            // Release microphone
-            for (const track of stream.getTracks()) {
-                track.stop();
-            }
-            
-            await waitForAudioStoragePromise;
-
-            if (!currentSession.value) {
-                throw new Error("No active session for recording");
-            }
-
-            // Convert webm to mp3 format
-            const blobs = await audioStorage.getSessionBlobs(
-                currentSession.value,
+    async function abortRecording(): Promise<void> {
+        if (
+            !source ||
+            !pcmWorklet ||
+            !stream ||
+            !audioContext
+        ) {
+            console.error("source, pcmWorklet, stream, audioContext",
+                source,
+                pcmWorklet,
+                stream,
+                audioContext,
             );
 
-            opt.logger(`Number of blobs: ${blobs.length}`);
-
-            const inputBlob = new Blob(blobs, { type: mediaRecorder.value?.mimeType });
-            const mp3Blob = await convertAudioToMp3(inputBlob, "recording");
-
-            // Update state with processed audio
-            audioBlob.value = mp3Blob;
-            audioUrl.value = URL.createObjectURL(mp3Blob);
-
-            // Clear recording timer
-            if (recordingInterval.value) {
-                clearInterval(recordingInterval.value);
-                recordingInterval.value = undefined;
-            }
-
-            audioStorage.deleteSession(currentSession.value);
-
-            opt.onRecordingStopped(audioBlob.value, audioUrl.value);
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : String(e);
-            error.value = message;
-            opt.onError(message);
-        } finally {
-            isProcessing.value = false;
+            throw new Error("invalid state");
         }
+
+        isRecording.value = false;
+        source.disconnect();
+        pcmWorklet.disconnect();
+
+        for (const track of stream.getTracks()) {
+            track.stop();
+        }
+        await audioContext.close();
+        // Clear recording timer
+        stopTime();
     }
 
     function resetRecording(): void {
         audioBlob.value = undefined;
         audioUrl.value = "";
         error.value = "";
-        recordingTime.value = 0;
     }
 
     return {
@@ -285,11 +256,6 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         audioUrl,
         currentSession,
         resetRecording,
-        mediaRecorder,
-        recordingInterval,
-        recordingStartTime,
-        elapsedTime,
         error,
-        abandonedRecording,
     };
 }

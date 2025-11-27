@@ -2,13 +2,12 @@
 import { AnimatePresence, motion } from "motion-v";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useFFmpeg } from "../composables/audioConversion";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
+import { useFFmpeg } from "#imports";
 
 const audioStorage = new AudioStorageService();
 
-const { convertWebmToMp3 } = useFFmpeg();
 const { t } = useI18n();
 
 const sessions = ref<AudioSession[]>([]);
@@ -42,12 +41,20 @@ async function deleteSession(sessionId: string): Promise<void> {
 async function downloadAudio(sessionId: string): Promise<void> {
     downloadingSessionId.value = sessionId;
     try {
-        const blobs = await audioStorage.getSessionBlobs(sessionId);
-        if (!blobs || blobs.length === 0) {
+        const pcmData = await audioStorage.getPcmData(sessionId);
+
+        if (!pcmData || pcmData.length === 0) {
             throw new Error("No audio chunks found for this session");
         }
-        const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, `session-${sessionId}`);
+
+        const session = await audioStorage.getSession(sessionId);
+        if (!session) {
+            throw new Error(`Session with ID ${sessionId} not found`);
+        }
+
+        const { pcmToMp3 } = useFFmpeg(); 
+        const mp3Blob = await pcmToMp3(pcmData, session.sampleRate, session.numChannels);
+        
         const url = URL.createObjectURL(mp3Blob);
         const a = document.createElement("a");
         a.href = url;

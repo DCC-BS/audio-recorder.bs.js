@@ -6,7 +6,7 @@ export class AudioStorageService {
         return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
 
-    public async createSession(name: string, mimeType: string): Promise<string> {
+    public async createSession(name: string, sampleRate: number, numChannels: number): Promise<string> {
         const id = this.generateId();
         const now = new Date(Date.now()).toISOString();
 
@@ -14,20 +14,19 @@ export class AudioStorageService {
             id,
             name,
             createdAt: now,
-            blobCount: 0,
+            chunkCount: 0,
             totalSize: 0,
-            blobIds: [],
-            mimeType,
+            chunkIds: [],
+            sampleRate,
+            numChannels,
         });
 
         return id;
     }
 
-    public async storeAudioBlob(
+    public async storeAudioChunk(
         sessionId: string,
-        blob: Blob,
-        name?: string,
-        duration?: number,
+        floats: Float32Array,
     ): Promise<string> {
         const id = this.generateId();
         const now = new Date().toISOString();
@@ -39,24 +38,20 @@ export class AudioStorageService {
 
         await db.transaction(
             "rw",
-            db.audioBlobs,
+            db.audioChunks,
             db.audioSessions,
             async () => {
-                await db.audioBlobs.add({
+                await db.audioChunks.add({
                     id,
                     sessionId,
                     createdAt: now,
-                    duration,
-                    name,
-                    size: blob.size,
-                    type: blob.type,
-                    blob,
+                    floats,
                 });
 
                 // Update session metadata
-                session.blobCount += 1;
-                session.totalSize += blob.size;
-                session.blobIds.push(id);
+                session.chunkCount += 1;
+                session.totalSize += floats.length;
+                session.chunkIds.push(id);
 
                 await db.audioSessions.put(session);
             },
@@ -65,18 +60,38 @@ export class AudioStorageService {
         return id;
     }
 
-    public async getSessionBlobs(sessionId: string): Promise<Blob[]> {
-        const blobs = await db.audioBlobs
+    public async getSession(sessionId: string): Promise<AudioSession | undefined> {
+        return db.audioSessions.get(sessionId);
+    }
+
+    public async getSessionChunks(sessionId: string): Promise<Float32Array[]> {
+        const chunks = await db.audioChunks
             .where("sessionId")
             .equals(sessionId)
             .toArray();
 
-        return blobs.map((b) => b.blob);
+        return chunks.map((c) => c.floats);
+    }
+
+    public async getPcmData(sessionId: string) : Promise<Float32Array> { 
+        const chunks = await this.getSessionChunks(sessionId);
+        const length = chunks.reduce(
+            (acc: number, arr: Float32Array) => acc + arr.length,
+            0,
+        );
+        const pcmData = new Float32Array(length);
+        let offset = 0;
+        for (const chunk of chunks) {
+            pcmData.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        return pcmData;
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {
         const sessions = await db.audioSessions
-            .where("blobCount")
+            .where("chunkCount")
             .aboveOrEqual(1)
             .toArray();
         return sessions;
@@ -90,11 +105,11 @@ export class AudioStorageService {
 
         await db.transaction(
             "rw",
-            db.audioBlobs,
+            db.audioChunks,
             db.audioSessions,
             async () => {
-                // Delete all associated blobs
-                await db.audioBlobs
+                // Delete all associated chunks
+                await db.audioChunks
                     .where("sessionId")
                     .equals(sessionId)
                     .delete();
@@ -106,7 +121,7 @@ export class AudioStorageService {
 
     public async clearSessionOverThreshold(maxSessions: number): Promise<void> {
         const sessions = await db.audioSessions
-            .where("blobCount")
+            .where("chunkCount")
             .aboveOrEqual(1)
             .sortBy("createdAt");
 

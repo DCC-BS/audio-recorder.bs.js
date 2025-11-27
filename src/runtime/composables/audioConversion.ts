@@ -12,16 +12,16 @@ function toBlob(data: Uint8Array | string, mimeType: string): Blob {
 }
 
 function mimeTypeToFileExtension(mime: string) {
-    if(mime.includes("audio/mp4")){
+    if (mime.includes("audio/mp4")) {
         return "m4a";
     }
-    
-    if(mime.includes("audio/webm")) {
-        return "webm"; 
+
+    if (mime.includes("audio/webm")) {
+        return "webm";
     }
 
-    if(mime.includes("video/mp4")) {
-        return "mp4"
+    if (mime.includes("video/mp4")) {
+        return "mp4";
     }
 
     return "webm";
@@ -50,7 +50,7 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         const inputFileName = `${fileName}.${ext}`;
         const mp3FileName = `${fileName}.mp3`;
 
-        try {            
+        try {
             await ffmpeg.writeFile(inputFileName, await fetchFile(inputBlob));
             await ffmpeg.exec(["-i", inputFileName, mp3FileName]);
             const data = await ffmpeg.readFile(mp3FileName);
@@ -65,7 +65,41 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         }
     }
 
+    async function pcmToMp3(
+        pcmFloat32: Float32Array,
+        sampleRate: number,
+        numChannels: number,
+    ): Promise<Blob> {
+        // Load FFmpeg wasm
+        await ffmpeg.load();
+
+        // Write raw PCM to FFmpeg virtual FS
+        ffmpeg.writeFile("input.pcm", new Uint8Array(pcmFloat32.buffer));
+
+        // Run conversion
+        await ffmpeg.exec([
+            "-f",
+            "f32le",
+            "-ar",
+            sampleRate.toString(),
+            "-ac",
+            numChannels.toString(),
+            "-i",
+            "input.pcm",
+            "-codec:a",
+            "libmp3lame",
+            "-b:a",
+            "128k", // bitrate (optional)
+            "output.mp3",
+        ]);
+
+        // Read result
+        const data = await ffmpeg.readFile("output.mp3");
+        return toBlob(data, "audio/mp3");
+    }
+
     return {
         convertAudioToMp3,
+        pcmToMp3
     };
 }

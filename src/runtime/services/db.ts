@@ -1,34 +1,31 @@
 import Dexie, { type EntityTable } from "dexie";
 
-export interface AudioBlob {
+export interface AudioChunk {
     id: string;
     sessionId: string;
     createdAt: string;
-    duration?: number;
-    name?: string;
-    size: number;
-    type: string;
-    blob: Blob;
+    floats: Float32Array
 }
 
 export interface AudioSession {
     id: string;
     name?: string;
     createdAt: string;
-    blobCount: number;
+    chunkCount: number;
     totalSize: number;
-    mimeType: string;
-    blobIds: string[];
+    chunkIds: string[];
+    sampleRate: number;
+    numChannels: number;
 }
 
 const db = new Dexie("AudioRecorderDB") as Dexie & {
-    audioBlobs: EntityTable<AudioBlob, "id">;
+    audioChunks: EntityTable<AudioChunk, "id">;
     audioSessions: EntityTable<AudioSession, "id">;
 };
 
-db.version(1).stores({
-    audioBlobs: "id, sessionId, createdAt, name, size, type",
-    audioSessions: "id, createdAt, updatedAt, blobCount, totalSize",
+db.version(2).stores({
+    audioChunks: "id, sessionId, createdAt",
+    audioSessions: "id, createdAt, updatedAt, chunkCount, totalSize",
 });
 
 export { db };
