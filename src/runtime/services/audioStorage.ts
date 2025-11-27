@@ -6,7 +6,11 @@ export class AudioStorageService {
         return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
 
-    public async createSession(name: string, sampleRate: number, numChannels: number): Promise<string> {
+    public async createSession(
+        name: string,
+        sampleRate: number,
+        numChannels: number,
+    ): Promise<string> {
         const id = this.generateId();
         const now = new Date(Date.now()).toISOString();
 
@@ -60,7 +64,9 @@ export class AudioStorageService {
         return id;
     }
 
-    public async getSession(sessionId: string): Promise<AudioSession | undefined> {
+    public async getSession(
+        sessionId: string,
+    ): Promise<AudioSession | undefined> {
         return db.audioSessions.get(sessionId);
     }
 
@@ -73,7 +79,7 @@ export class AudioStorageService {
         return chunks.map((c) => c.floats);
     }
 
-    public async getPcmData(sessionId: string) : Promise<Float32Array> { 
+    public async getPcmData(sessionId: string): Promise<Float32Array> {
         const chunks = await this.getSessionChunks(sessionId);
         const length = chunks.reduce(
             (acc: number, arr: Float32Array) => acc + arr.length,

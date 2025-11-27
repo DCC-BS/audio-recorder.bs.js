@@ -4,7 +4,7 @@ export interface AudioChunk {
     id: string;
     sessionId: string;
     createdAt: string;
-    floats: Float32Array
+    floats: Float32Array;
 }
 
 export interface AudioSession {

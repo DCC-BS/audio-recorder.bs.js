@@ -1,13 +1,12 @@
 import { onUnmounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
 import { AudioStorageService } from "../services/audioStorage";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
 import { useFFmpeg } from "./audioConversion";
-import { useI18n } from "vue-i18n";
-
-import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
 import { useRecordingTime } from "./useRecodingTime";
 
 /**
@@ -106,15 +105,11 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
             source = audioContext.createMediaStreamSource(stream);
 
-            pcmWorklet = new AudioWorkletNode(
-                audioContext,
-                "pcm-recorder",
-                {
-                    numberOfInputs: 1,
-                    numberOfOutputs: 1,
-                    channelCount: 1,
-                },
-            );
+            pcmWorklet = new AudioWorkletNode(audioContext, "pcm-recorder", {
+                numberOfInputs: 1,
+                numberOfOutputs: 1,
+                channelCount: 1,
+            });
 
             source.connect(pcmWorklet);
             pcmWorklet.connect(audioContext.destination); // or audioContext.createGain() if you don’t want local playback
@@ -182,19 +177,25 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         await abortRecording();
         isProcessing.value = true;
 
-        if(!currentSession.value) {
+        if (!currentSession.value) {
             throw new Error("No active session for recording");
         }
 
         const session = await audioStorage.getSession(currentSession.value);
-        if(!session) {
-            throw new Error(`Session with ID ${currentSession.value} not found`);
+        if (!session) {
+            throw new Error(
+                `Session with ID ${currentSession.value} not found`,
+            );
         }
-        const pcmData = await audioStorage.getPcmData(currentSession.value)
+        const pcmData = await audioStorage.getPcmData(currentSession.value);
 
         // Convert Float32 -> 16‑bit PCM and wrap into a WAV Blob
         const { pcmToMp3 } = useFFmpeg(opt.logger);
-        const mp3Blob = await pcmToMp3(pcmData, session.sampleRate, session.numChannels);
+        const mp3Blob = await pcmToMp3(
+            pcmData,
+            session.sampleRate,
+            session.numChannels,
+        );
 
         audioBlob.value = mp3Blob;
         audioUrl.value = URL.createObjectURL(mp3Blob);
@@ -211,13 +212,9 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     }
 
     async function abortRecording(): Promise<void> {
-        if (
-            !source ||
-            !pcmWorklet ||
-            !stream ||
-            !audioContext
-        ) {
-            console.error("source, pcmWorklet, stream, audioContext",
+        if (!source || !pcmWorklet || !stream || !audioContext) {
+            console.error(
+                "source, pcmWorklet, stream, audioContext",
                 source,
                 pcmWorklet,
                 stream,

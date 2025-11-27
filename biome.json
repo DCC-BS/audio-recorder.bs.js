@@ -46,7 +46,12 @@
     },
     "overrides": [
         {
-            "includes": ["**/*.vue"],
+            "includes": ["**/*.vue", "**/*.css"],
+            "css": {
+                "parser": {
+                    "tailwindDirectives": true
+                }
+            },
             "linter": {
                 "rules": {
                     "correctness": {

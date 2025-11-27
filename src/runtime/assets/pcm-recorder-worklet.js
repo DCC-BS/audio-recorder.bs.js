@@ -1,6 +1,6 @@
 // pcm-recorder-worklet.js
 class PCMRecorderProcessor extends AudioWorkletProcessor {
-    process(inputs, outputs, parameters) {
+    process(inputs, _, __) {
         const input = inputs[0];
         if (!input || input.length === 0) {
             return true;

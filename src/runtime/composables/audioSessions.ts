@@ -47,14 +47,18 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     async function getMp3Blob(sessionId: string): Promise<Blob> {
         const session = await audioStorage.getSession(sessionId);
 
-        if(!session) {
+        if (!session) {
             throw new Error(`Session with ID ${sessionId} not found`);
         }
 
         const pcmData = await audioStorage.getPcmData(sessionId);
-    
+
         const { pcmToMp3 } = useFFmpeg(opt.logger);
-        const mp3Blob = await pcmToMp3(pcmData, session.sampleRate, session.numChannels);
+        const mp3Blob = await pcmToMp3(
+            pcmData,
+            session.sampleRate,
+            session.numChannels,
+        );
         return mp3Blob;
     }
 

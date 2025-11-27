@@ -2,9 +2,9 @@
 import { AnimatePresence, motion } from "motion-v";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useFFmpeg } from "#imports";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
-import { useFFmpeg } from "#imports";
 
 const audioStorage = new AudioStorageService();
 
@@ -52,9 +52,13 @@ async function downloadAudio(sessionId: string): Promise<void> {
             throw new Error(`Session with ID ${sessionId} not found`);
         }
 
-        const { pcmToMp3 } = useFFmpeg(); 
-        const mp3Blob = await pcmToMp3(pcmData, session.sampleRate, session.numChannels);
-        
+        const { pcmToMp3 } = useFFmpeg();
+        const mp3Blob = await pcmToMp3(
+            pcmData,
+            session.sampleRate,
+            session.numChannels,
+        );
+
         const url = URL.createObjectURL(mp3Blob);
         const a = document.createElement("a");
         a.href = url;

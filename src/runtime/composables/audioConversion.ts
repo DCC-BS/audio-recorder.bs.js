@@ -100,6 +100,6 @@ export function useFFmpeg(logger?: (msg: string) => void) {
 
     return {
         convertAudioToMp3,
-        pcmToMp3
+        pcmToMp3,
     };
 }
