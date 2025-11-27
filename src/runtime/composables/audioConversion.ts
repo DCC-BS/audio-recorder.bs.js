@@ -78,7 +78,10 @@ export function useFFmpeg(logger?: (msg: string) => void) {
 
         try {
             // Write raw PCM to FFmpeg virtual FS
-            await ffmpeg.writeFile("input.pcm", new Uint8Array(pcmFloat32.buffer));
+            await ffmpeg.writeFile(
+                "input.pcm",
+                new Uint8Array(pcmFloat32.buffer),
+            );
 
             // Run conversion
             await ffmpeg.exec([

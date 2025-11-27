@@ -28,17 +28,22 @@ db.version(1).stores({
     audioSessions: "id, createdAt, chunkCount, totalSize",
 });
 
-db.version(2).stores({
-    audioChunks: "id, sessionId, createdAt",
-    audioSessions: "id, createdAt, chunkCount, totalSize",
-    audioBlobs: null,
-}).upgrade((tx) => {
-    return tx.table("audioSessions").toCollection().modify((session) => {
-            delete session.blobCount;
-            delete session.blobIds;
-            session.chunkIds = [];
-            session.chunkCount = 0;
-        });
-});
+db.version(2)
+    .stores({
+        audioChunks: "id, sessionId, createdAt",
+        audioSessions: "id, createdAt, chunkCount, totalSize",
+        audioBlobs: null,
+    })
+    .upgrade((tx) => {
+        return tx
+            .table("audioSessions")
+            .toCollection()
+            .modify((session) => {
+                delete session.blobCount;
+                delete session.blobIds;
+                session.chunkIds = [];
+                session.chunkCount = 0;
+            });
+    });
 
 export { db };

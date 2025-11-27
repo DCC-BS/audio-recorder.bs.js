@@ -143,12 +143,14 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             // Receive raw PCM frames from the worklet
             pcmWorklet.port.onmessage = async (event) => {
                 if (event.data.type === "data") {
-                    audioStorage.storeAudioChunk(
-                        currentSession.value as string,
-                        event.data.samples as Float32Array,
-                    ).catch((e) => {
-                        console.error("Error storing audio chunk:", e);
-                    });
+                    audioStorage
+                        .storeAudioChunk(
+                            currentSession.value as string,
+                            event.data.samples as Float32Array,
+                        )
+                        .catch((e) => {
+                            console.error("Error storing audio chunk:", e);
+                        });
 
                     if (import.meta.env.DEV) {
                         navigator.storage.estimate().then((estimate) => {
