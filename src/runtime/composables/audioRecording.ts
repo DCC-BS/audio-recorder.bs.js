@@ -146,7 +146,9 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                     audioStorage.storeAudioChunk(
                         currentSession.value as string,
                         event.data.samples as Float32Array,
-                    );
+                    ).catch((e) => {
+                        console.error("Error storing audio chunk:", e);
+                    });
 
                     if (import.meta.env.DEV) {
                         navigator.storage.estimate().then((estimate) => {
@@ -189,7 +191,6 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         }
         const pcmData = await audioStorage.getPcmData(currentSession.value);
 
-        // Convert Float32 -> 16‑bit PCM and wrap into a WAV Blob
         const { pcmToMp3 } = useFFmpeg(opt.logger);
         const mp3Blob = await pcmToMp3(
             pcmData,

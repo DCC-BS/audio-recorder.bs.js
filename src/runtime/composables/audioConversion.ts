@@ -65,6 +65,9 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         }
     }
 
+    /**
+     * Convert 16‑bit PCM Float32Array to MP3 Blob
+     */
     async function pcmToMp3(
         pcmFloat32: Float32Array,
         sampleRate: number,
@@ -73,29 +76,39 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         // Load FFmpeg wasm
         await ffmpeg.load();
 
-        // Write raw PCM to FFmpeg virtual FS
-        ffmpeg.writeFile("input.pcm", new Uint8Array(pcmFloat32.buffer));
+        try {
+            // Write raw PCM to FFmpeg virtual FS
+            await ffmpeg.writeFile("input.pcm", new Uint8Array(pcmFloat32.buffer));
 
-        // Run conversion
-        await ffmpeg.exec([
-            "-f",
-            "f32le",
-            "-ar",
-            sampleRate.toString(),
-            "-ac",
-            numChannels.toString(),
-            "-i",
-            "input.pcm",
-            "-codec:a",
-            "libmp3lame",
-            "-b:a",
-            "128k", // bitrate (optional)
-            "output.mp3",
-        ]);
+            // Run conversion
+            await ffmpeg.exec([
+                "-f",
+                "f32le",
+                "-ar",
+                sampleRate.toString(),
+                "-ac",
+                numChannels.toString(),
+                "-i",
+                "input.pcm",
+                "-codec:a",
+                "libmp3lame",
+                "-b:a",
+                "128k", // bitrate (optional)
+                "output.mp3",
+            ]);
 
-        // Read result
-        const data = await ffmpeg.readFile("output.mp3");
-        return toBlob(data, "audio/mp3");
+            // Read result
+            const data = await ffmpeg.readFile("output.mp3");
+            return toBlob(data, "audio/mp3");
+        } finally {
+            // Clean up
+            try {
+                await ffmpeg.deleteFile("input.pcm");
+            } catch {}
+            try {
+                await ffmpeg.deleteFile("output.mp3");
+            } catch {}
+        }
     }
 
     return {

@@ -23,9 +23,22 @@ const db = new Dexie("AudioRecorderDB") as Dexie & {
     audioSessions: EntityTable<AudioSession, "id">;
 };
 
+db.version(1).stores({
+    audioBlobs: "id, sessionId, createdAt, name, size, type",
+    audioSessions: "id, createdAt, chunkCount, totalSize",
+});
+
 db.version(2).stores({
     audioChunks: "id, sessionId, createdAt",
-    audioSessions: "id, createdAt, updatedAt, chunkCount, totalSize",
+    audioSessions: "id, createdAt, chunkCount, totalSize",
+    audioBlobs: null,
+}).upgrade((tx) => {
+    return tx.table("audioSessions").toCollection().modify((session) => {
+            delete session.blobCount;
+            delete session.blobIds;
+            session.chunkIds = [];
+            session.chunkCount = 0;
+        });
 });
 
 export { db };

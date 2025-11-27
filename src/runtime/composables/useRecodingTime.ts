@@ -1,10 +1,14 @@
-import { ref } from "vue";
+import { onUnmounted, ref } from "vue";
 
 export function useRecordingTime() {
     const recordingStartTime = ref(0);
     const recordingTime = ref(0);
 
     const recordingInterval = ref<NodeJS.Timeout>();
+
+    onUnmounted(() => {
+        stopTime();
+    });
 
     function startTime() {
         recordingStartTime.value = Date.now();
