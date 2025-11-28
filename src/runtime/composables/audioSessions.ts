@@ -1,7 +1,7 @@
 import { onMounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
-import { useFFmpeg } from "./audioConversion";
+import { useFFmpeg } from "./useFFmpeg";
 
 /**
  * Options for audio recording
@@ -29,12 +29,11 @@ export async function getAbandonedRecording(): Promise<AudioSession[]> {
 
 export function useAudioSessions(options: AudioSessionOptions = {}) {
     const opt = { ...optionsDefault, ...options };
+    const { concatMp3 } = useFFmpeg(opt.logger);
 
     const isReady = ref(false);
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
-
-    const { convertWebmToMp3 } = useFFmpeg(opt.logger);
 
     onMounted(async () => {
         await audioStorage.clearSessionsOlderThan(
@@ -46,15 +45,18 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         isReady.value = true;
     });
 
-    async function getWebmBlob(sessionId: string): Promise<Blob> {
-        const blobs = await audioStorage.getSessionBlobs(sessionId);
-        return new Blob(blobs, { type: "audio/webm" });
-    }
-
     async function getMp3Blob(sessionId: string): Promise<Blob> {
-        const blobs = await audioStorage.getSessionBlobs(sessionId);
-        const webmBlob = new Blob(blobs, { type: "audio/webm" });
-        const mp3Blob = await convertWebmToMp3(webmBlob, `session-${sessionId}`);
+        const session = await audioStorage.getSession(sessionId);
+
+        if (!session) {
+            throw new Error(`Session with ID ${sessionId} not found`);
+        }
+
+        const mp3Chunks = await audioStorage.getSessionChunks(sessionId);
+
+        const mp3Blob = await concatMp3(
+            mp3Chunks,
+        );
         return mp3Blob;
     }
 
@@ -71,7 +73,6 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     return {
         isReady,
         abandonedRecording,
-        getWebmBlob,
         getMp3Blob,
         deleteAbandonedRecording,
     };

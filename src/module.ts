@@ -6,10 +6,6 @@ import {
 } from "@nuxt/kit";
 import type { ModuleRuntimeHooks } from "@nuxtjs/i18n";
 
-export * from "./runtime/composables/audioConversion";
-export * from "./runtime/composables/audioRecording";
-export * from "./runtime/utils/microphone";
-
 export default defineNuxtModule<ModuleRuntimeHooks>({
     meta: {
         name: "audio-recorder.bs.js",
