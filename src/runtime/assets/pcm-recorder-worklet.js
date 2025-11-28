@@ -3,7 +3,7 @@ class PCMRecorderProcessor extends AudioWorkletProcessor {
     process(inputs, _, __) {
         const input = inputs[0];
         if (!input || input.length === 0) {
-            return false;
+            return true;
         }
 
         const channelData = input[0]; // mono; Float32Array
@@ -17,7 +17,7 @@ class PCMRecorderProcessor extends AudioWorkletProcessor {
             samples: copy,
         });
 
-        return false; // keep processor alive
+        return true; // keep processor alive
     }
 }
 

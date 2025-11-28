@@ -6,13 +6,14 @@ import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
-import { useFFmpeg } from "./audioConversion";
+import { useFFmpeg } from "./useFFmpeg";
 import { useRecordingTime } from "./useRecodingTime";
+import { toPcmData } from "../utils/pcm";
 
 /**
  * Options for audio recording
  * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
- * @property storeToDbInterval - Interval in milliseconds to store audio blobs to the database (default: 30000 (30 seconds))
+ * @property storeToDbInterval - Interval in seconds to store audio blobs to the database (default: 30000 (30 seconds))
  * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
  */
 export type RecodingOptions = {
@@ -27,7 +28,7 @@ const optionsDefault: Required<RecodingOptions> = {
     onRecordingStarted: () => {},
     onRecordingStopped: () => {},
     onError: () => {},
-    storeToDbInterval: 30000, // 30000
+    storeToDbInterval: 30, // 30 seconds
     logger: (_: string) => {},
 };
 
@@ -58,6 +59,7 @@ const optionsDefault: Required<RecodingOptions> = {
 export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { t } = useI18n();
+    const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
     const isLoading = ref(false);
     const isRecording = ref(false);
     const isProcessing = ref(false);
@@ -75,6 +77,9 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     const error = ref<string>();
     const audioBlob = ref<Blob>();
     const audioUrl = ref<string>();
+
+    let pcmArrays: Float32Array[] = [];
+    let totalSamples = 0;
 
     onUnmounted(() => {
         if (isRecording.value) {
@@ -98,9 +103,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                 audio: true,
             });
 
-            audioContext = new AudioContext({
-                sampleRate: 16000, // or let the browser choose
-            });
+            audioContext = new AudioContext();
+            const sampleRate = audioContext.sampleRate;
 
             await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
             source = audioContext.createMediaStreamSource(stream);
@@ -142,44 +146,72 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
             let debugCounter = 0;
             let startUsage = 0;
+
             navigator.storage.estimate().then((estimate) => {
-                if(!estimate.usage) { return};
-                startUsage = (estimate.usage /
-                                (1024 * 1024));
+                if (!estimate.usage) {
+                    return;
+                }
+                startUsage = estimate.usage / (1024 * 1024);
             });
 
             // Receive raw PCM frames from the worklet
             pcmWorklet.port.onmessage = async (event) => {
-                if (event.data.type === "data") {
-                    audioStorage
-                        .storeAudioChunk(
-                            currentSession.value as string,
-                            event.data.samples as Float32Array,
-                        )
-                        .catch((e) => {
-                            console.error("Error storing audio chunk:", e);
-                        });
+                try {
+                    if (event.data.type === "data") {
+                        const samples = event.data.samples as Float32Array;
+                        pcmArrays.push(samples);
+                        totalSamples += samples.length;
 
-                    if (import.meta.env.DEV && debugCounter++ % 500 === 0) {
-                        navigator.storage.estimate().then((estimate) => {
-                            if (!estimate.quota || !estimate.usage) return;
+                        // Calculate total duration of accumulated PCM data
+                        const durationInSeconds = totalSamples / sampleRate;
 
-                            const usageMB = estimate.usage / (1024 * 1024);
-                            const quotaMB = (
-                                estimate.quota /
-                                (1024 * 1024)
-                            ).toFixed(2);
-
-                            const diff = usageMB - startUsage;
-                            const diffGB = (diff / 1024).toFixed(2);
-
-                            opt.logger( `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`);
-
-                            console.debug(
-                                `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
+                        if (durationInSeconds >= opt.storeToDbInterval) {
+                            totalSamples = 0;
+                            console.log(
+                                "Appending MP3 chunk, duration:",
+                                durationInSeconds.toFixed(2),
+                                "seconds",
                             );
-                        });
+                            await appendMp3();
+                            console.log(
+                                "Appended MP3 chunk, clearing PCM arrays",
+                            );
+                        }
+
+                        // audioStorage
+                        //     .storeAudioChunk(
+                        //         currentSession.value as string,
+                        //         event.data.samples as Float32Array,
+                        //     )
+                        //     .catch((e) => {
+                        //         console.error("Error storing audio chunk:", e);
+                        //     });
+
+                        if (import.meta.env.DEV && debugCounter++ % 500 === 0) {
+                            navigator.storage.estimate().then((estimate) => {
+                                if (!estimate.quota || !estimate.usage) return;
+
+                                const usageMB = estimate.usage / (1024 * 1024);
+                                const quotaMB = (
+                                    estimate.quota /
+                                    (1024 * 1024)
+                                ).toFixed(2);
+
+                                const diff = usageMB - startUsage;
+                                const diffGB = (diff / 1024).toFixed(2);
+
+                                opt.logger(
+                                    `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
+                                );
+
+                                console.debug(
+                                    `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
+                                );
+                            });
+                        }
                     }
+                } catch (e) {
+                    console.error("Error processing PCM data:", e);
                 }
             };
         } catch (e) {
@@ -188,7 +220,27 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         }
     }
 
+    async function appendMp3() {
+        if(!audioContext) {
+            throw new Error("AudioContext is not initialized");
+        }
+
+        const data = toPcmData(pcmArrays);
+        totalSamples = 0;
+        pcmArrays = [];
+
+        const mp3Blob = await pcmToMp3(data, audioContext.sampleRate, 1);
+
+        audioStorage.storeAudioChunk(
+            currentSession.value as string,
+            mp3Blob,
+        ).catch((e) => {
+            console.error("Error storing audio chunk:", e);
+        });
+    }
+
     async function stopRecording(): Promise<void> {
+        await appendMp3();
         await abortRecording();
         isProcessing.value = true;
 
@@ -202,14 +254,10 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                 `Session with ID ${currentSession.value} not found`,
             );
         }
-        const pcmData = await audioStorage.getPcmData(currentSession.value);
 
-        const { pcmToMp3 } = useFFmpeg(opt.logger);
-        const mp3Blob = await pcmToMp3(
-            pcmData,
-            session.sampleRate,
-            session.numChannels,
-        );
+        const blobs = await audioStorage.getSessionChunks(currentSession.value);
+
+        const mp3Blob = await concatMp3(blobs);
 
         audioBlob.value = mp3Blob;
         audioUrl.value = URL.createObjectURL(mp3Blob);
@@ -228,7 +276,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     async function abortRecording(): Promise<void> {
         if (!source || !pcmWorklet || !stream || !audioContext) {
             console.error(
-                "source, pcmWorklet, stream, audioContext",
+                "source, pcmworklet, stream, audioContext",
                 source,
                 pcmWorklet,
                 stream,
@@ -239,13 +287,29 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         }
 
         isRecording.value = false;
+        
+        // Stop the worklet message port
+        pcmWorklet.port.onmessage = null;
+        pcmWorklet.port.close();
+        
+        // Disconnect audio nodes
         source.disconnect();
         pcmWorklet.disconnect();
 
+        // Stop all media tracks
         for (const track of stream.getTracks()) {
             track.stop();
         }
+        
+        // Close the audio context (this will unload the worklet module)
         await audioContext.close();
+        
+        // Clear references
+        source = undefined;
+        pcmWorklet = undefined;
+        stream = undefined;
+        audioContext = undefined;
+        
         // Clear recording timer
         stopTime();
     }
@@ -254,6 +318,8 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         audioBlob.value = undefined;
         audioUrl.value = "";
         error.value = "";
+        pcmArrays = [];
+        totalSamples = 0;
     }
 
     return {

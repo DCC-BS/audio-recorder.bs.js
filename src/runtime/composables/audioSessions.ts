@@ -1,7 +1,7 @@
 import { onMounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
-import { useFFmpeg } from "./audioConversion";
+import { useFFmpeg } from "./useFFmpeg";
 
 /**
  * Options for audio recording
@@ -29,6 +29,7 @@ export async function getAbandonedRecording(): Promise<AudioSession[]> {
 
 export function useAudioSessions(options: AudioSessionOptions = {}) {
     const opt = { ...optionsDefault, ...options };
+    const { concatMp3 } = useFFmpeg(opt.logger);
 
     const isReady = ref(false);
     const audioStorage = new AudioStorageService();
@@ -51,13 +52,10 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
             throw new Error(`Session with ID ${sessionId} not found`);
         }
 
-        const pcmData = await audioStorage.getPcmData(sessionId);
+        const mp3Chunks = await audioStorage.getSessionChunks(sessionId);
 
-        const { pcmToMp3 } = useFFmpeg(opt.logger);
-        const mp3Blob = await pcmToMp3(
-            pcmData,
-            session.sampleRate,
-            session.numChannels,
+        const mp3Blob = await concatMp3(
+            mp3Chunks,
         );
         return mp3Blob;
     }

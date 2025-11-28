@@ -96,7 +96,9 @@ export function useFFmpeg(logger?: (msg: string) => void) {
                 "-codec:a",
                 "libmp3lame",
                 "-b:a",
-                "128k", // bitrate (optional)
+                "64k",// bitrate (optional)
+                "-ar" ,
+                "16000", // output sample rate (optional)
                 "output.mp3",
             ]);
 
@@ -114,8 +116,76 @@ export function useFFmpeg(logger?: (msg: string) => void) {
         }
     }
 
+    /**
+     * Concatenate multiple MP3 blobs into a single MP3 blob
+     */
+    async function concatMp3(mp3Blobs: Blob[]): Promise<Blob> {
+        if (mp3Blobs.length === 0) {
+            throw new Error("No MP3 blobs provided");
+        }
+
+        const firstBlob = mp3Blobs[0];
+        if (mp3Blobs.length === 1 && firstBlob) {
+            return firstBlob;
+        }
+
+        await ffmpeg.load();
+
+        const inputFiles: string[] = [];
+        let fileListContent = "";
+
+        try {
+            // Write all input MP3 files to FFmpeg virtual FS
+            for (let i = 0; i < mp3Blobs.length; i++) {
+                const fileName = `input${i}.mp3`;
+                inputFiles.push(fileName);
+                await ffmpeg.writeFile(fileName, await fetchFile(mp3Blobs[i]));
+                fileListContent += `file '${fileName}'\n`;
+            }
+
+            // Create concat list file
+            await ffmpeg.writeFile(
+                "files.txt",
+                new TextEncoder().encode(fileListContent),
+            );
+
+            // Run FFmpeg concat demuxer with re-encoding to ensure proper MP3 headers
+            await ffmpeg.exec([
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                "files.txt",
+                "-codec:a",
+                "libmp3lame",
+                "-write_xing",
+                "1",
+                "output.mp3",
+            ]);
+
+            // Read result
+            const data = await ffmpeg.readFile("output.mp3");
+            return toBlob(data, "audio/mp3");
+        } finally {
+            // Clean up all files
+            for (const fileName of inputFiles) {
+                try {
+                    await ffmpeg.deleteFile(fileName);
+                } catch {}
+            }
+            try {
+                await ffmpeg.deleteFile("files.txt");
+            } catch {}
+            try {
+                await ffmpeg.deleteFile("output.mp3");
+            } catch {}
+        }
+    }
+
     return {
         convertAudioToMp3,
         pcmToMp3,
+        concatMp3,
     };
 }

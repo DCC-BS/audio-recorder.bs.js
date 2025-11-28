@@ -1,4 +1,4 @@
-export * from "./composables/audioConversion";
+export * from "./composables/useFFmpeg";
 export * from "./composables/audioRecording";
 export * from "./composables/audioSessions";
 export * from "./services/audioStorage";

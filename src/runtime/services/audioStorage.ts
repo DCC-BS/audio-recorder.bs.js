@@ -30,7 +30,7 @@ export class AudioStorageService {
 
     public async storeAudioChunk(
         sessionId: string,
-        floats: Float32Array,
+        mp3Blob: Blob,
     ): Promise<string> {
         const id = this.generateId();
         const now = new Date().toISOString();
@@ -49,12 +49,12 @@ export class AudioStorageService {
                     id,
                     sessionId,
                     createdAt: now,
-                    floats,
+                    blob: mp3Blob,
                 });
 
                 // Update session metadata
                 session.chunkCount += 1;
-                session.totalSize += floats.length;
+                session.totalSize += mp3Blob.size;
                 session.chunkIds.push(id);
 
                 await db.audioSessions.put(session);
@@ -70,29 +70,13 @@ export class AudioStorageService {
         return db.audioSessions.get(sessionId);
     }
 
-    public async getSessionChunks(sessionId: string): Promise<Float32Array[]> {
+    public async getSessionChunks(sessionId: string): Promise<Blob[]> {
         const chunks = await db.audioChunks
             .where("sessionId")
             .equals(sessionId)
             .toArray();
 
-        return chunks.map((c) => c.floats);
-    }
-
-    public async getPcmData(sessionId: string): Promise<Float32Array> {
-        const chunks = await this.getSessionChunks(sessionId);
-        const length = chunks.reduce(
-            (acc: number, arr: Float32Array) => acc + arr.length,
-            0,
-        );
-        const pcmData = new Float32Array(length);
-        let offset = 0;
-        for (const chunk of chunks) {
-            pcmData.set(chunk, offset);
-            offset += chunk.length;
-        }
-
-        return pcmData;
+        return chunks.map((c) => c.blob);
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {

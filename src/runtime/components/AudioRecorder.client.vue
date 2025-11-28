@@ -45,7 +45,7 @@ const {
     onRecordingStopped: (audioBlob: Blob, audioUrl: string) => {
         emit("recording-stopped", audioBlob, audioUrl);
     },
-    storeToDbInterval: props.storeToDbInterval * 1000,
+    storeToDbInterval: props.storeToDbInterval,
     logger: props.logger,
 });
 
