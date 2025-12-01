@@ -30,7 +30,7 @@ export class AudioStorageService {
 
     public async storeAudioChunk(
         sessionId: string,
-        mp3Blob: Blob,
+        buffer: ArrayBuffer,
     ): Promise<string> {
         const id = this.generateId();
         const now = new Date().toISOString();
@@ -49,12 +49,12 @@ export class AudioStorageService {
                     id,
                     sessionId,
                     createdAt: now,
-                    blob: mp3Blob,
+                    buffer,
                 });
 
                 // Update session metadata
                 session.chunkCount += 1;
-                session.totalSize += mp3Blob.size;
+                session.totalSize += buffer.byteLength;
                 session.chunkIds.push(id);
 
                 await db.audioSessions.put(session);
@@ -70,13 +70,13 @@ export class AudioStorageService {
         return db.audioSessions.get(sessionId);
     }
 
-    public async getSessionChunks(sessionId: string): Promise<Blob[]> {
+    public async getSessionChunks(sessionId: string): Promise<ArrayBuffer[]> {
         const chunks = await db.audioChunks
             .where("sessionId")
             .equals(sessionId)
             .toArray();
 
-        return chunks.map((c) => c.blob);
+        return chunks.map((c) => c.buffer);
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {

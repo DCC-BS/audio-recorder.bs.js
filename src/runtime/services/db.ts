@@ -4,7 +4,7 @@ export interface AudioChunk {
     id: string;
     sessionId: string;
     createdAt: string;
-    blob: Blob;
+    buffer: ArrayBuffer;
 }
 
 export interface AudioSession {

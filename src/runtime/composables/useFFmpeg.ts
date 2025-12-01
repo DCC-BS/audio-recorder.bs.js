@@ -104,6 +104,7 @@ export function useFFmpeg(logger?: (msg: string) => void) {
 
             // Read result
             const data = await ffmpeg.readFile("output.mp3");
+
             return toBlob(data, "audio/mp3");
         } finally {
             // Clean up
@@ -119,14 +120,14 @@ export function useFFmpeg(logger?: (msg: string) => void) {
     /**
      * Concatenate multiple MP3 blobs into a single MP3 blob
      */
-    async function concatMp3(mp3Blobs: Blob[]): Promise<Blob> {
-        if (mp3Blobs.length === 0) {
+    async function concatMp3(mp3Buffers: ArrayBuffer[]): Promise<Blob> {
+        if (mp3Buffers.length === 0) {
             throw new Error("No MP3 blobs provided");
         }
 
-        const firstBlob = mp3Blobs[0];
-        if (mp3Blobs.length === 1 && firstBlob) {
-            return firstBlob;
+        const firstBlob = mp3Buffers[0];
+        if (mp3Buffers.length === 1 && firstBlob) {
+            return new Blob([firstBlob], { type: "audio/mp3" });
         }
 
         await ffmpeg.load();
@@ -136,10 +137,16 @@ export function useFFmpeg(logger?: (msg: string) => void) {
 
         try {
             // Write all input MP3 files to FFmpeg virtual FS
-            for (let i = 0; i < mp3Blobs.length; i++) {
+            for (let i = 0; i < mp3Buffers.length; i++) {
                 const fileName = `input${i}.mp3`;
                 inputFiles.push(fileName);
-                await ffmpeg.writeFile(fileName, await fetchFile(mp3Blobs[i]));
+
+                const buffer = mp3Buffers[i];
+                if (!buffer) {
+                    continue;
+                }
+
+                await ffmpeg.writeFile(fileName, new Uint8Array(buffer));
                 fileListContent += `file '${fileName}'\n`;
             }
 

@@ -1,22 +1,22 @@
 import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
 
-
 export class PCMRecorder {
     listeners: Array<(data: Float32Array) => void> = [];
-    
+
     constructor(
         public readonly stream: MediaStream,
         public readonly audioContext: AudioContext,
         public readonly pcmWorklet: AudioWorkletNode,
         public readonly source: MediaStreamAudioSourceNode,
-        public readonly sampleRate: number = audioContext.sampleRate) {
+        public readonly sampleRate: number = audioContext.sampleRate,
+    ) {
         // Receive raw PCM frames from the worklet
         pcmWorklet.port.onmessage = async (event) => {
             try {
                 if (event.data.type === "data") {
-                    const pcmData: Float32Array = event.data.pcmData;
+                    const samples = event.data.samples as Float32Array;
                     for (const listener of this.listeners) {
-                        listener(pcmData);
+                        listener(samples);
                     }
                 }
             } catch (e) {
@@ -33,7 +33,6 @@ export class PCMRecorder {
         this.pcmWorklet.port.postMessage({ type: "stop" });
         this.source.disconnect();
         this.pcmWorklet.disconnect();
-        this.audioContext.close();
 
         for (const track of this.stream.getTracks()) {
             track.stop();
@@ -56,7 +55,6 @@ export class PCMRecorder {
         await this.audioContext.close();
     }
 }
-
 
 export async function startPcmRecorder() {
     const stream = await navigator.mediaDevices.getUserMedia({

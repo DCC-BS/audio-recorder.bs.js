@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
     showResult: true,
     autoStart: false,
     logger: undefined,
-    storeToDbInterval: 10,
+    storeToDbInterval: 5,
 });
 
 const emit = defineEmits<{
@@ -107,10 +107,12 @@ defineExpose({
                 <motion.div
                     class="bg-slate-900/5 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/30 dark:border-slate-700/30"
                     :initial="{ scale: 0.8 }" :animate="{ scale: 1 }" :transition="{ delay: 0.2, type: 'spring' }">
-                    <motion.div layout class="recording-time text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2">
+                    <motion.div layout
+                        class="recording-time text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2">
                         {{ formattedRecordingTime }}
                     </motion.div>
-                    <p class="text-sm text-slate-600 dark:text-slate-400">{{ t("audio-recorder.audio.recordingTime") }}</p>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">{{ t("audio-recorder.audio.recordingTime") }}
+                    </p>
                 </motion.div>
 
                 <!-- Audio Visualizer -->
@@ -137,9 +139,9 @@ defineExpose({
             <motion.div v-if="isProcessing" key="processing-section" :initial="{ opacity: 0, scale: 0.9 }"
                 :animate="{ opacity: 1, scale: 1 }" :exit="{ opacity: 0, scale: 0.9 }"
                 :transition="{ duration: 0.4, type: 'spring' }" class="text-center space-y-6 mt-4">
-                <div class="flex items-center justify-center gap-4">
-                    <motion.div class="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full"
-                        :animate="{ rotate: 360 }" :transition="{ duration: 1, repeat: Infinity, ease: 'linear' }"></motion.div>
+                <div class="flex items-center align-middle justify-center gap-2">
+                    <UIcon name="i-lucide-loader-circle" class="animate-spin text-blue-400" />
+
                     <span class="text-blue-700 dark:text-blue-300 font-medium">
                         {{ t('audio-recorder.audio.processingRecording') }}
                     </span>
@@ -158,11 +160,11 @@ defineExpose({
                     <motion.div class="flex items-center justify-center gap-2 mb-4" :initial="{ opacity: 0 }"
                         :animate="{ opacity: 1 }" :transition="{ delay: 0.3 }">
                         <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span class="text-green-700 dark:text-green-300 font-medium">{{ t('audio-recorder.audio.recordingComplete') }} </span>
+                        <span class="text-green-700 dark:text-green-300 font-medium">{{
+                            t('audio-recorder.audio.recordingComplete') }} </span>
                     </motion.div>
 
-                    <motion.div
-                        :whileHover="{ scale: 1.02 }" :transition="{ type: 'spring', stiffness: 300 }">
+                    <motion.div :whileHover="{ scale: 1.02 }" :transition="{ type: 'spring', stiffness: 300 }">
                         <audio :src="audioUrl" controls class="w-full"></audio>
                     </motion.div>
 

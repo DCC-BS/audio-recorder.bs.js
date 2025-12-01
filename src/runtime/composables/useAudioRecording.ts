@@ -6,9 +6,9 @@ import {
     handleMicrophoneError,
 } from "../utils/microphone";
 import { toPcmData } from "../utils/pcm";
+import { type PCMRecorder, startPcmRecorder } from "../utils/recorderService";
 import { useFFmpeg } from "./useFFmpeg";
 import { useRecordingTime } from "./useRecodingTime";
-import { startPcmRecorder, type PCMRecorder } from "../utils/recorderService";
 
 /**
  * Options for audio recording
@@ -16,7 +16,7 @@ import { startPcmRecorder, type PCMRecorder } from "../utils/recorderService";
  * @property storeToDbInterval - Interval in seconds to store audio blobs to the database (default: 30000 (30 seconds))
  * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
  */
-export type RecodingOptions = {
+export type RecordingOptions = {
     onRecordingStarted?: (stream: MediaStream) => void;
     onRecordingStopped?: (audioBlob: Blob, audioUrl: string) => void;
     onError?: (error: string) => void;
@@ -24,7 +24,7 @@ export type RecodingOptions = {
     logger?: (msg: string) => void;
 };
 
-const optionsDefault: Required<RecodingOptions> = {
+const optionsDefault: Required<RecordingOptions> = {
     onRecordingStarted: () => {},
     onRecordingStopped: () => {},
     onError: () => {},
@@ -56,7 +56,7 @@ const optionsDefault: Required<RecodingOptions> = {
  * });
  * ```
  */
-export function useAudioRecording(options: RecodingOptions = {}) {
+export function useAudioRecording(options: RecordingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { t } = useI18n();
     const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
@@ -165,6 +165,21 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         } catch (e) {
             console.error(e);
             error.value = handleMicrophoneError(e as Error);
+
+            // Clean up orphaned session if created
+            try {
+                if (currentSession.value) {
+                    await audioStorage.deleteSession(currentSession.value);
+                    currentSession.value = undefined;
+                }
+            } catch (err) {
+                console.error(
+                    "Error cleaning up session after failed start:",
+                    err,
+                );
+            }
+
+            await abortRecording();
         }
     }
 
@@ -179,8 +194,11 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
         const mp3Blob = await pcmToMp3(data, pcmRecorder.sampleRate, 1);
 
-        audioStorage
-            .storeAudioChunk(currentSession.value as string, mp3Blob)
+        await audioStorage
+            .storeAudioChunk(
+                currentSession.value as string,
+                await mp3Blob.arrayBuffer(),
+            )
             .catch((e) => {
                 console.error("Error storing audio chunk:", e);
             });
@@ -202,19 +220,16 @@ export function useAudioRecording(options: RecodingOptions = {}) {
             );
         }
 
-        const blobs = await audioStorage.getSessionChunks(currentSession.value);
-
-        const mp3Blob = await concatMp3(blobs);
+        const buffers = await audioStorage.getSessionChunks(
+            currentSession.value,
+        );
+        const mp3Blob = await concatMp3(buffers);
 
         audioBlob.value = mp3Blob;
         audioUrl.value = URL.createObjectURL(mp3Blob);
 
-        if (!currentSession.value) {
-            throw new Error("No active session for recording");
-        }
         // Update state with processed audio
-
-        audioStorage.deleteSession(currentSession.value);
+        await audioStorage.deleteSession(currentSession.value);
         opt.onRecordingStopped(audioBlob.value, audioUrl.value);
 
         isProcessing.value = false;
@@ -223,19 +238,22 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     async function abortRecording(): Promise<void> {
         if (!pcmRecorder) {
             console.error("pcmRecorder is not initialized");
-
-            throw new Error("invalid state");
+            return;
         }
 
-        isRecording.value = false;
+        try {
+            isRecording.value = false;
 
-        await pcmRecorder.stop();
+            await pcmRecorder.stop();
 
-        // Clear references
-        pcmRecorder = undefined;
+            // Clear references
+            pcmRecorder = undefined;
 
-        // Clear recording timer
-        stopTime();
+            // Clear recording timer
+            stopTime();
+        } catch (e) {
+            console.error("Error aborting recording:", e);
+        }
     }
 
     function resetRecording(): void {
