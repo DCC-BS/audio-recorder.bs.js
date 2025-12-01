@@ -30,26 +30,18 @@ export class PCMRecorder {
     }
 
     public async stop() {
-        this.pcmWorklet.port.postMessage({ type: "stop" });
-        this.source.disconnect();
-        this.pcmWorklet.disconnect();
-
         for (const track of this.stream.getTracks()) {
             track.stop();
         }
 
         // Stop the worklet message port
+        this.pcmWorklet.port.postMessage({ type: "stop" });
         this.pcmWorklet.port.onmessage = null;
         this.pcmWorklet.port.close();
+        this.pcmWorklet.disconnect();
 
         // Disconnect audio nodes
         this.source.disconnect();
-        this.pcmWorklet.disconnect();
-
-        // Stop all media tracks
-        for (const track of this.stream.getTracks()) {
-            track.stop();
-        }
 
         // Close the audio context (this will unload the worklet module)
         await this.audioContext.close();

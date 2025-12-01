@@ -43,6 +43,8 @@ db.version(2)
                 delete session.blobIds;
                 session.chunkIds = [];
                 session.chunkCount = 0;
+                session.numChannels = 1;
+                session.sampleRate = 44100;
             });
     });
 

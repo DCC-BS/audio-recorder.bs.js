@@ -6,7 +6,7 @@ import {
     handleMicrophoneError,
 } from "../utils/microphone";
 import { toPcmData } from "../utils/pcm";
-import { type PCMRecorder, startPcmRecorder } from "../utils/recorderService";
+import { type PCMRecorder, startPcmRecorder } from "../utils/pcmRecorder";
 import { useFFmpeg } from "./useFFmpeg";
 import { useRecordingTime } from "./useRecodingTime";
 
