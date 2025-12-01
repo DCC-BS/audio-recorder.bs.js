@@ -63,7 +63,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     const { startTime, stopTime, recordingTime } = useRecordingTime();
 
     // outputs
-    const isLoading = ref(false);
     const isRecording = ref(false);
     const isProcessing = ref(false);
 
@@ -90,7 +89,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         if (!availabilityResult.isAvailable) {
             error.value =
                 availabilityResult.message || "Microphone not available";
-            isLoading.value = false;
             return;
         }
 
@@ -109,7 +107,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             opt.onRecordingStarted(pcmRecorder.stream);
 
             // Update UI state
-            isLoading.value = false;
             isRecording.value = true;
 
             startTime();
@@ -117,12 +114,14 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             let debugCounter = 0;
             let startUsage = 0;
 
-            navigator.storage.estimate().then((estimate) => {
-                if (!estimate.usage) {
-                    return;
-                }
-                startUsage = estimate.usage / (1024 * 1024);
-            });
+            if (import.meta.env.DEV) {
+                navigator.storage.estimate().then((estimate) => {
+                    if (!estimate.usage) {
+                        return;
+                    }
+                    startUsage = estimate.usage / (1024 * 1024);
+                });
+            }
 
             const sampleRate = pcmRecorder.sampleRate;
 
@@ -266,7 +265,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     }
 
     return {
-        isLoading,
         isRecording,
         isProcessing,
         recordingTime,
