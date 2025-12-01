@@ -6,9 +6,9 @@ import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
+import { toPcmData } from "../utils/pcm";
 import { useFFmpeg } from "./useFFmpeg";
 import { useRecordingTime } from "./useRecodingTime";
-import { toPcmData } from "../utils/pcm";
 
 /**
  * Options for audio recording
@@ -60,23 +60,24 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { t } = useI18n();
     const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
+    const { startTime, stopTime, recordingTime } = useRecordingTime();
+
+    // outputs
     const isLoading = ref(false);
     const isRecording = ref(false);
     const isProcessing = ref(false);
+
+    const error = ref<string>();
+    const audioBlob = ref<Blob>();
+    const audioUrl = ref<string>();
+
     const audioStorage = new AudioStorageService();
-
-    const { startTime, stopTime, recordingTime } = useRecordingTime();
-
     const currentSession = ref<string>();
 
     let stream: MediaStream | undefined;
     let audioContext: AudioContext | undefined;
     let pcmWorklet: AudioWorkletNode | undefined;
     let source: MediaStreamAudioSourceNode | undefined;
-
-    const error = ref<string>();
-    const audioBlob = ref<Blob>();
-    const audioUrl = ref<string>();
 
     let pcmArrays: Float32Array[] = [];
     let totalSamples = 0;
@@ -221,7 +222,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     }
 
     async function appendMp3() {
-        if(!audioContext) {
+        if (!audioContext) {
             throw new Error("AudioContext is not initialized");
         }
 
@@ -231,12 +232,11 @@ export function useAudioRecording(options: RecodingOptions = {}) {
 
         const mp3Blob = await pcmToMp3(data, audioContext.sampleRate, 1);
 
-        audioStorage.storeAudioChunk(
-            currentSession.value as string,
-            mp3Blob,
-        ).catch((e) => {
-            console.error("Error storing audio chunk:", e);
-        });
+        audioStorage
+            .storeAudioChunk(currentSession.value as string, mp3Blob)
+            .catch((e) => {
+                console.error("Error storing audio chunk:", e);
+            });
     }
 
     async function stopRecording(): Promise<void> {
@@ -287,11 +287,11 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         }
 
         isRecording.value = false;
-        
+
         // Stop the worklet message port
         pcmWorklet.port.onmessage = null;
         pcmWorklet.port.close();
-        
+
         // Disconnect audio nodes
         source.disconnect();
         pcmWorklet.disconnect();
@@ -300,16 +300,16 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         for (const track of stream.getTracks()) {
             track.stop();
         }
-        
+
         // Close the audio context (this will unload the worklet module)
         await audioContext.close();
-        
+
         // Clear references
         source = undefined;
         pcmWorklet = undefined;
         stream = undefined;
         audioContext = undefined;
-        
+
         // Clear recording timer
         stopTime();
     }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAudioSessions } from "../../src/runtime/composables/audioSessions";
+import { useAudioSessions } from "../../src/runtime/composables/useAudioSessions";
 
 const logs = ref<string[]>([]);
 

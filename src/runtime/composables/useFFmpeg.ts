@@ -96,8 +96,8 @@ export function useFFmpeg(logger?: (msg: string) => void) {
                 "-codec:a",
                 "libmp3lame",
                 "-b:a",
-                "64k",// bitrate (optional)
-                "-ar" ,
+                "64k", // bitrate (optional)
+                "-ar",
                 "16000", // output sample rate (optional)
                 "output.mp3",
             ]);

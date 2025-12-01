@@ -3,7 +3,7 @@ import UButton from "@nuxt/ui/components/Button.vue";
 import { AnimatePresence, motion } from "motion-v";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAudioRecording } from "../composables/audioRecording";
+import { useAudioRecording } from "../composables/useAudioRecording";
 
 import AudioVisualizer from "./AudioVisualizer.client.vue";
 

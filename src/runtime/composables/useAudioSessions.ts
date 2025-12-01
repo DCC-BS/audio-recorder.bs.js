@@ -54,9 +54,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
 
         const mp3Chunks = await audioStorage.getSessionChunks(sessionId);
 
-        const mp3Blob = await concatMp3(
-            mp3Chunks,
-        );
+        const mp3Blob = await concatMp3(mp3Chunks);
         return mp3Blob;
     }
 
