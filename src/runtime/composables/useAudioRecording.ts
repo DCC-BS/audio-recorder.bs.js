@@ -1,6 +1,5 @@
 import { onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
 import { AudioStorageService } from "../services/audioStorage";
 import {
     checkMicrophoneAvailability,
@@ -9,6 +8,7 @@ import {
 import { toPcmData } from "../utils/pcm";
 import { useFFmpeg } from "./useFFmpeg";
 import { useRecordingTime } from "./useRecodingTime";
+import { startPcmRecorder, type PCMRecorder } from "../utils/recorderService";
 
 /**
  * Options for audio recording
@@ -74,16 +74,13 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     const audioStorage = new AudioStorageService();
     const currentSession = ref<string>();
 
-    let stream: MediaStream | undefined;
-    let audioContext: AudioContext | undefined;
-    let pcmWorklet: AudioWorkletNode | undefined;
-    let source: MediaStreamAudioSourceNode | undefined;
+    let pcmRecorder: PCMRecorder | undefined;
 
     let pcmArrays: Float32Array[] = [];
     let totalSamples = 0;
 
     onUnmounted(() => {
-        if (isRecording.value) {
+        if (pcmRecorder) {
             abortRecording();
         }
     });
@@ -100,48 +97,20 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         resetRecording();
 
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-            });
-
-            audioContext = new AudioContext();
-            const sampleRate = audioContext.sampleRate;
-
-            await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
-            source = audioContext.createMediaStreamSource(stream);
-
-            pcmWorklet = new AudioWorkletNode(audioContext, "pcm-recorder", {
-                numberOfInputs: 1,
-                numberOfOutputs: 1,
-                channelCount: 1,
-            });
-
-            source.connect(pcmWorklet);
-            pcmWorklet.connect(audioContext.destination); // or audioContext.createGain() if you don’t want local playback
+            pcmRecorder = await startPcmRecorder();
 
             currentSession.value = await audioStorage.createSession(
                 `${t("audio-recorder.audio.newRecording", { date: new Date().toLocaleString() })}`,
-                audioContext.sampleRate,
+                pcmRecorder.sampleRate,
                 1,
             );
 
             // Initialize visualization
-            opt.onRecordingStarted(stream);
+            opt.onRecordingStarted(pcmRecorder.stream);
 
             // Update UI state
             isLoading.value = false;
             isRecording.value = true;
-
-            // Setup for iOS background audio
-            if ("mediaSession" in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: "Active Recording",
-                    artist: "Transcribo",
-                    album: "Transcribo",
-                });
-
-                navigator.mediaSession.playbackState = "none";
-            }
 
             startTime();
 
@@ -155,66 +124,44 @@ export function useAudioRecording(options: RecodingOptions = {}) {
                 startUsage = estimate.usage / (1024 * 1024);
             });
 
+            const sampleRate = pcmRecorder.sampleRate;
+
             // Receive raw PCM frames from the worklet
-            pcmWorklet.port.onmessage = async (event) => {
-                try {
-                    if (event.data.type === "data") {
-                        const samples = event.data.samples as Float32Array;
-                        pcmArrays.push(samples);
-                        totalSamples += samples.length;
+            pcmRecorder.onPCMData(async (pcmData: Float32Array) => {
+                pcmArrays.push(pcmData);
+                totalSamples += pcmData.length;
 
-                        // Calculate total duration of accumulated PCM data
-                        const durationInSeconds = totalSamples / sampleRate;
+                // Calculate total duration of accumulated PCM data
+                const durationInSeconds = totalSamples / sampleRate;
 
-                        if (durationInSeconds >= opt.storeToDbInterval) {
-                            totalSamples = 0;
-                            console.log(
-                                "Appending MP3 chunk, duration:",
-                                durationInSeconds.toFixed(2),
-                                "seconds",
-                            );
-                            await appendMp3();
-                            console.log(
-                                "Appended MP3 chunk, clearing PCM arrays",
-                            );
-                        }
-
-                        // audioStorage
-                        //     .storeAudioChunk(
-                        //         currentSession.value as string,
-                        //         event.data.samples as Float32Array,
-                        //     )
-                        //     .catch((e) => {
-                        //         console.error("Error storing audio chunk:", e);
-                        //     });
-
-                        if (import.meta.env.DEV && debugCounter++ % 500 === 0) {
-                            navigator.storage.estimate().then((estimate) => {
-                                if (!estimate.quota || !estimate.usage) return;
-
-                                const usageMB = estimate.usage / (1024 * 1024);
-                                const quotaMB = (
-                                    estimate.quota /
-                                    (1024 * 1024)
-                                ).toFixed(2);
-
-                                const diff = usageMB - startUsage;
-                                const diffGB = (diff / 1024).toFixed(2);
-
-                                opt.logger(
-                                    `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
-                                );
-
-                                console.debug(
-                                    `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
-                                );
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.error("Error processing PCM data:", e);
+                if (durationInSeconds >= opt.storeToDbInterval) {
+                    totalSamples = 0;
+                    await appendMp3();
                 }
-            };
+
+                if (import.meta.env.DEV && debugCounter++ % 500 === 0) {
+                    navigator.storage.estimate().then((estimate) => {
+                        if (!estimate.quota || !estimate.usage) return;
+
+                        const usageMB = estimate.usage / (1024 * 1024);
+                        const quotaMB = (
+                            estimate.quota /
+                            (1024 * 1024)
+                        ).toFixed(2);
+
+                        const diff = usageMB - startUsage;
+                        const diffGB = (diff / 1024).toFixed(2);
+
+                        opt.logger(
+                            `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
+                        );
+
+                        console.debug(
+                            `${recordingTime.value}: Using ${usageMB.toFixed(2)} MB out of ${quotaMB} MB. Diff: ${diff.toFixed(2)} MB (${diffGB} GB)`,
+                        );
+                    });
+                }
+            });
         } catch (e) {
             console.error(e);
             error.value = handleMicrophoneError(e as Error);
@@ -222,15 +169,15 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     }
 
     async function appendMp3() {
-        if (!audioContext) {
-            throw new Error("AudioContext is not initialized");
+        if (!pcmRecorder) {
+            throw new Error("pcmRecorder is not initialized");
         }
 
         const data = toPcmData(pcmArrays);
         totalSamples = 0;
         pcmArrays = [];
 
-        const mp3Blob = await pcmToMp3(data, audioContext.sampleRate, 1);
+        const mp3Blob = await pcmToMp3(data, pcmRecorder.sampleRate, 1);
 
         audioStorage
             .storeAudioChunk(currentSession.value as string, mp3Blob)
@@ -274,41 +221,18 @@ export function useAudioRecording(options: RecodingOptions = {}) {
     }
 
     async function abortRecording(): Promise<void> {
-        if (!source || !pcmWorklet || !stream || !audioContext) {
-            console.error(
-                "source, pcmworklet, stream, audioContext",
-                source,
-                pcmWorklet,
-                stream,
-                audioContext,
-            );
+        if (!pcmRecorder) {
+            console.error("pcmRecorder is not initialized");
 
             throw new Error("invalid state");
         }
 
         isRecording.value = false;
 
-        // Stop the worklet message port
-        pcmWorklet.port.onmessage = null;
-        pcmWorklet.port.close();
-
-        // Disconnect audio nodes
-        source.disconnect();
-        pcmWorklet.disconnect();
-
-        // Stop all media tracks
-        for (const track of stream.getTracks()) {
-            track.stop();
-        }
-
-        // Close the audio context (this will unload the worklet module)
-        await audioContext.close();
+        await pcmRecorder.stop();
 
         // Clear references
-        source = undefined;
-        pcmWorklet = undefined;
-        stream = undefined;
-        audioContext = undefined;
+        pcmRecorder = undefined;
 
         // Clear recording timer
         stopTime();
@@ -320,6 +244,7 @@ export function useAudioRecording(options: RecodingOptions = {}) {
         error.value = "";
         pcmArrays = [];
         totalSamples = 0;
+        pcmRecorder = undefined;
     }
 
     return {
