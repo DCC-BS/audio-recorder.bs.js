@@ -27,7 +27,7 @@
         "README.md"
     ],
     "scripts": {
-        "prepack": "nuxt-module-build build",
+        "prepack": "bunx nuxt-module-build build",
         "generate": "nuxi generate",
         "dev": "nuxi dev playground",
         "dev:build": "nuxi build playground",
