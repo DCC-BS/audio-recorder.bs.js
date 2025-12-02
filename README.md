@@ -353,8 +353,10 @@ interface CustomAction {
 
 **With custom actions:**
 ```vue
-<script setup>
-const customActions = [
+<script setup lang="ts">
+import type { CustomAction } from '@dcc-bs/audio-recorder.bs.js'
+
+const customActions: CustomAction[] = [
   {
     label: 'Upload',
     icon: 'i-lucide-upload',

@@ -40,6 +40,13 @@ export default defineNuxtModule<ModuleRuntimeHooks>({
 
         addImportsDir(resolver.resolve("./runtime/composables"));
 
+        // Export types for TypeScript users
+        _nuxt.hook("prepare:types", ({ references }) => {
+            references.push({
+                path: resolver.resolve("./runtime/types"),
+            });
+        });
+
         if (!_nuxt.options.vite) {
             _nuxt.options.vite = {};
         }
