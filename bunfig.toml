@@ -1,0 +1,3 @@
+[install]
+# default npm registry with token from env var
+registry = { url = "https://registry.npmjs.org", token = "$NPM_TOKEN" }

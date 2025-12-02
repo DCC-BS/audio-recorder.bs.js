@@ -4,9 +4,31 @@
     "version": "2.0.0",
     "license": "MIT",
     "type": "module",
+    "homepage": "https://dcc-bs.github.io/documentation/",
+    "author": {
+        "name": "Data Competence Center Basel Stadt",
+        "email": "dcc@bs.ch",
+        "url": "https://www.bs.ch/daten/databs/dcc"
+    },
+    "keywords": ["nuxt", "audio", "recorder", "ffmpeg", "nuxt-module", "mp3"],
+    "contributors": [
+        {
+            "email": "yanick.schraner@bs.ch",
+            "name": "Yanick Schraner"
+        },
+        {
+            "email": "tobias.bollinger@bs.ch",
+            "name": "Tobias Bollinger"
+         }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DCC-BS/audio-recorder.bs.js"
+    },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/"
     },
+
     "exports": {
         ".": {
             "types": "./dist/types.d.mts",
