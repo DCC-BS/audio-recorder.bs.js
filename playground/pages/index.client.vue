@@ -40,7 +40,7 @@ async function downloadAudio(id: string) {
     </div>
 
     <div class="flex justify-center mt-10">
-        <AudioRecorder :logger="(l) => logs.push(l)" @recording-started="() => logs = []" />
+        <AudioRecorder :store-to-db-interval="1" :logger="(l) => logs.push(l)" @recording-started="() => logs = []" />
     </div>
 
     <div v-for="log in logs">

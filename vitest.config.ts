@@ -18,6 +18,7 @@ export default defineVitestConfig({
                 "**/components/**",
                 "**/models/**",
                 "src/module.ts",
+                "tests/e2e/**",
                 ...coverageConfigDefaults.exclude,
             ],
         },
