@@ -2,7 +2,7 @@
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/DCC-BS/audio-recorder.bs.js)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/DCC-BS/audio-recorder.bs.js/publish.yml)
-![NPM Version](https://img.shields.io/npm/v/%40dcc-bs%2Faudio-recorder.bs.js)
+[![NPM Version](https://img.shields.io/npm/v/%40dcc-bs%2Faudio-recorder.bs.js)](https://www.npmjs.com/package/@dcc-bs/audio-recorder.bs.js)
 
 Audio Recorder is a powerful Nuxt.js module that provides advanced audio recording, processing, and management capabilities for web applications. This module includes Vue components, composables, and utilities for seamless audio recording integration with client-side storage and audio format conversion.
 
