@@ -308,11 +308,166 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 
 ### AudioSessionExplorer
 
-Browse and manage audio sessions component.
+Browse and manage audio sessions component with customizable actions.
 
-- **AudioRecorder**: Main recording component with start/stop controls
-- **AudioVisualizer**: Real-time audio waveform visualization
-- **AudioSessionExplorer**: Browse and manage audio sessions
+#### Props
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `showDownloadButton` | `boolean` | `true` | Whether to show the default download button |
+| `showDeleteButton` | `boolean` | `true` | Whether to show the default delete button |
+| `customActions` | `CustomAction[]` | `[]` | Array of custom action buttons to display before the download button |
+
+#### CustomAction Interface
+
+```typescript
+interface CustomAction {
+  label: string           // Button text
+  icon?: string          // Icon name (e.g., 'i-lucide-upload')
+  color?: string         // Button color (default: 'primary')
+  variant?: string       // Button variant (default: 'soft')
+  loading?: boolean      // External loading state
+  disabled?: boolean     // External disabled state
+  handler: (
+    sessionId: string,
+    mp3Blob: Blob,
+    deleteSession: () => Promise<void>
+  ) => void | Promise<void>
+}
+```
+
+#### Slots
+
+| Slot | Props | Description |
+|------|-------|-------------|
+| `actions` | `session`, `getMp3Blob`, `deleteSession` | Custom action buttons slot for maximum flexibility |
+
+#### Usage Examples
+
+**Basic usage:**
+```vue
+<template>
+  <AudioSessionExplorer />
+</template>
+```
+
+**With custom actions:**
+```vue
+<script setup>
+const customActions = [
+  {
+    label: 'Upload',
+    icon: 'i-lucide-upload',
+    color: 'blue',
+    handler: async (sessionId, mp3Blob, deleteSession) => {
+      // Upload the blob to your server
+      await uploadToServer(mp3Blob)
+      
+      // Optionally delete the session after successful upload
+      await deleteSession()
+    }
+  },
+  {
+    label: 'Share',
+    icon: 'i-lucide-share',
+    color: 'green',
+    variant: 'outline',
+    handler: async (sessionId, mp3Blob) => {
+      // Share the audio blob
+      await shareAudio(mp3Blob)
+      // Session is kept (no deleteSession call)
+    }
+  }
+]
+</script>
+
+<template>
+  <AudioSessionExplorer :custom-actions="customActions" />
+</template>
+```
+
+**Hide default buttons and use custom actions only:**
+```vue
+<script setup>
+const customActions = [
+  {
+    label: 'Process',
+    icon: 'i-lucide-cog',
+    handler: async (sessionId, mp3Blob, deleteSession) => {
+      const processed = await processAudio(mp3Blob)
+      if (processed) {
+        await deleteSession()
+      }
+    }
+  }
+]
+</script>
+
+<template>
+  <AudioSessionExplorer
+    :custom-actions="customActions"
+    :show-download-button="false"
+    :show-delete-button="false"
+  />
+</template>
+```
+
+**Using the actions slot for maximum control:**
+```vue
+<template>
+  <AudioSessionExplorer>
+    <template #actions="{ session, getMp3Blob, deleteSession }">
+      <UButton
+        @click="async () => {
+          const blob = await getMp3Blob()
+          await customProcessing(blob, session.id)
+        }"
+        color="purple"
+        icon="i-lucide-sparkles"
+      >
+        Custom Action
+      </UButton>
+    </template>
+  </AudioSessionExplorer>
+</template>
+```
+
+**Combining custom actions with slot:**
+```vue
+<script setup>
+const customActions = [
+  {
+    label: 'Quick Upload',
+    icon: 'i-lucide-upload',
+    handler: async (sessionId, mp3Blob, deleteSession) => {
+      await quickUpload(mp3Blob)
+      await deleteSession()
+    }
+  }
+]
+</script>
+
+<template>
+  <AudioSessionExplorer :custom-actions="customActions">
+    <template #actions="{ session, getMp3Blob }">
+      <!-- Additional custom button via slot -->
+      <UButton @click="specialAction(session)">
+        Special
+      </UButton>
+    </template>
+  </AudioSessionExplorer>
+</template>
+```
+
+#### Features
+
+- **Session List**: Displays all recorded audio sessions with metadata
+- **Download**: Export sessions as MP3 files (can be disabled)
+- **Delete**: Remove sessions from storage (can be disabled)
+- **Custom Actions**: Add custom buttons with access to the MP3 blob and delete functionality
+- **Loading States**: Automatic loading indicators for all actions
+- **Animations**: Smooth transitions using Motion-V
+- **Empty State**: User-friendly message when no sessions exist
 
 ## Development
 

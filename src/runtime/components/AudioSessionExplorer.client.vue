@@ -6,6 +6,28 @@ import { useFFmpeg } from "#imports";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
 
+export interface CustomAction {
+    label: string;
+    icon?: string;
+    color?: string;
+    variant?: string;
+    loading?: boolean;
+    disabled?: boolean;
+    handler: (sessionId: string, mp3Blob: Blob, deleteSession: () => Promise<void>) => void | Promise<void>;
+}
+
+export interface AudioSessionExplorerProps {
+    showDownloadButton?: boolean;
+    showDeleteButton?: boolean;
+    customActions?: CustomAction[];
+}
+
+const props = withDefaults(defineProps<AudioSessionExplorerProps>(), {
+    showDownloadButton: true,
+    showDeleteButton: true,
+    customActions: () => [],
+});
+
 const audioStorage = new AudioStorageService();
 
 const { t } = useI18n();
@@ -14,6 +36,9 @@ const sessions = ref<AudioSession[]>([]);
 const isLoading = ref(true);
 const deletingSessionId = ref<string | null>(null);
 const downloadingSessionId = ref<string | null>(null);
+const actionLoadingStates = ref<Record<string, string | null>>({});
+const { concatMp3 } = useFFmpeg();
+
 
 onMounted(async () => {
     try {
@@ -41,23 +66,7 @@ async function deleteSession(sessionId: string): Promise<void> {
 async function downloadAudio(sessionId: string): Promise<void> {
     downloadingSessionId.value = sessionId;
     try {
-        const pcmData = await audioStorage.getPcmData(sessionId);
-
-        if (!pcmData || pcmData.length === 0) {
-            throw new Error("No audio chunks found for this session");
-        }
-
-        const session = await audioStorage.getSession(sessionId);
-        if (!session) {
-            throw new Error(`Session with ID ${sessionId} not found`);
-        }
-
-        const { pcmToMp3 } = useFFmpeg();
-        const mp3Blob = await pcmToMp3(
-            pcmData,
-            session.sampleRate,
-            session.numChannels,
-        );
+        const mp3Blob = await getMp3Blob(sessionId);
 
         const url = URL.createObjectURL(mp3Blob);
         const a = document.createElement("a");
@@ -72,6 +81,42 @@ async function downloadAudio(sessionId: string): Promise<void> {
     } finally {
         downloadingSessionId.value = null;
     }
+}
+
+async function getMp3Blob(sessionId: string): Promise<Blob> {
+    const chunks = await audioStorage.getSessionChunks(sessionId);
+
+    if (!chunks || chunks.length === 0) {
+        throw new Error("No audio chunks found for this session");
+    }
+
+    const session = await audioStorage.getSession(sessionId);
+    if (!session) {
+        throw new Error(`Session with ID ${sessionId} not found`);
+    }
+
+    return await concatMp3(chunks);
+}
+
+async function handleCustomAction(action: CustomAction, sessionId: string, actionKey: string): Promise<void> {
+    actionLoadingStates.value[actionKey] = sessionId;
+    try {
+        const mp3Blob = await getMp3Blob(sessionId);
+        
+        const deleteSessionFn = async () => {
+            await deleteSession(sessionId);
+        };
+
+        await action.handler(sessionId, mp3Blob, deleteSessionFn);
+    } catch (error) {
+        console.error("Failed to handle custom action:", error);
+    } finally {
+        actionLoadingStates.value[actionKey] = null;
+    }
+}
+
+function getActionKey(index: number, sessionId: string): string {
+    return `action-${index}-${sessionId}`;
 }
 
 function formatFileSize(bytes: number): string {
@@ -170,8 +215,24 @@ function formatDate(dateString: string): string {
 
                             <!-- Action Buttons -->
                             <div class="flex gap-2 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-                                <UButton @click="downloadAudio(session.id)" color="primary" variant="soft"
-                                    icon="i-lucide-download" :loading="downloadingSessionId === session.id"
+                                <!-- Custom Actions (Left of Download) -->
+                                <UButton v-for="(action, index) in props.customActions" :key="getActionKey(index, session.id)"
+                                    @click="handleCustomAction(action, session.id, getActionKey(index, session.id))"
+                                    :color="action.color || 'primary'" :variant="action.variant || 'soft'"
+                                    :icon="action.icon"
+                                    :loading="action.loading || actionLoadingStates[getActionKey(index, session.id)] === session.id"
+                                    :disabled="action.disabled || actionLoadingStates[getActionKey(index, session.id)] === session.id || downloadingSessionId === session.id || deletingSessionId === session.id"
+                                    class="transition-all duration-200 hover:scale-105">
+                                    {{ action.label }}
+                                </UButton>
+
+                                <!-- Slot for additional custom actions -->
+                                <slot name="actions" :session="session" :get-mp3-blob="() => getMp3Blob(session.id)"
+                                    :delete-session="() => deleteSession(session.id)" />
+
+                                <UButton v-if="props.showDownloadButton" @click="downloadAudio(session.id)"
+                                    color="primary" variant="soft" icon="i-lucide-download"
+                                    :loading="downloadingSessionId === session.id"
                                     :disabled="downloadingSessionId === session.id || deletingSessionId === session.id"
                                     class="transition-all duration-200 hover:scale-105">
                                     {{ downloadingSessionId === session.id ?
@@ -179,8 +240,9 @@ function formatDate(dateString: string): string {
                                         t('audio-recorder.sessionExplorer.downloadMp3') }}
                                 </UButton>
 
-                                <UButton @click="deleteSession(session.id)" color="error" variant="soft"
-                                    icon="i-lucide-trash-2" :loading="deletingSessionId === session.id"
+                                <UButton v-if="props.showDeleteButton" @click="deleteSession(session.id)"
+                                    color="error" variant="soft" icon="i-lucide-trash-2"
+                                    :loading="deletingSessionId === session.id"
                                     :disabled="deletingSessionId === session.id || downloadingSessionId === session.id"
                                     class="transition-all duration-200 hover:scale-105">
                                     {{ deletingSessionId === session.id ? t('audio-recorder.sessionExplorer.deleting') :
