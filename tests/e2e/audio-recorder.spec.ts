@@ -23,7 +23,7 @@ test.describe("Audio Recorder", () => {
     test("should start and stop audio recording", async ({ page }) => {
         await page.goto("/");
 
-        page.on('console', msg => console.log(msg.text()))
+        page.on("console", (msg) => console.log(msg.text()));
 
         // Click the start recording button
         const startButton = page.getByRole("button", {
@@ -126,8 +126,10 @@ test.describe("Audio Recorder", () => {
         await page.getByRole("button", { name: "Start Recording" }).click();
 
         // Wait for ffmpeg to load
-        await expect(page.getByText("ffmpeg version")).toBeVisible({ timeout: 5100 });
-        
+        await expect(page.getByText("ffmpeg version")).toBeVisible({
+            timeout: 5100,
+        });
+
         await page.waitForTimeout(500); // Wait for a second to simulate recording time
         await page.goto("http://localhost:3000/");
         await expect(
