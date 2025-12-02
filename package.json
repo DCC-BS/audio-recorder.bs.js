@@ -10,7 +10,14 @@
         "email": "dcc@bs.ch",
         "url": "https://www.bs.ch/daten/databs/dcc"
     },
-    "keywords": ["nuxt", "audio", "recorder", "ffmpeg", "nuxt-module", "mp3"],
+    "keywords": [
+        "nuxt",
+        "audio",
+        "recorder",
+        "ffmpeg",
+        "nuxt-module",
+        "mp3"
+    ],
     "contributors": [
         {
             "email": "yanick.schraner@bs.ch",
@@ -19,7 +26,7 @@
         {
             "email": "tobias.bollinger@bs.ch",
             "name": "Tobias Bollinger"
-         }
+        }
     ],
     "repository": {
         "type": "git",
@@ -28,7 +35,6 @@
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/"
     },
-
     "exports": {
         ".": {
             "types": "./dist/types.d.mts",
