@@ -13,13 +13,15 @@ Audio Recorder is a powerful Nuxt.js module that provides advanced audio recordi
 
 ## Features
 
-- **Audio Recording**: Web-based audio recording with MediaRecorder API integration
+- **Audio Recording**: Web-based audio recording with AudioWorklet and PCM capture
 - **Audio Visualization**: Real-time audio visualization during recording
 - **Session Management**: Persistent audio session storage with IndexedDB
-- **Audio Conversion**: FFmpeg integration for WebM to MP3 conversion
-- **Storage Services**: Client-side audio blob storage and management
+- **Audio Conversion**: FFmpeg integration for PCM to MP3 conversion and concatenation
+- **Chunked Recording**: Configurable chunk intervals for efficient storage management
+- **Storage Services**: Client-side audio chunk storage with ArrayBuffer for optimal performance
 - **Session Explorer**: Browse and manage recorded audio sessions
 - **Abandoned Recording Recovery**: Automatic detection and recovery of interrupted recordings
+- **iOS Support**: Improved background recording support for iOS devices
 - **Internationalization**: Built-in i18n support (English and German)
 
 ## Technology Stack
@@ -84,6 +86,7 @@ add the following line to your main CSS file:
     <AudioRecorder 
       :show-result="true"
       :auto-start="false"
+      :store-to-db-interval="30"
       :logger="customLogger"
       @recording-started="onRecordingStarted"
       @recording-stopped="onRecordingStopped"
@@ -110,23 +113,32 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 ```vue
 <script setup>
-import { useAudioRecording } from '@dcc-bs/audio-recorder.bs.js'
+import { useAudioRecording, useAudioSessions } from '@dcc-bs/audio-recorder.bs.js'
 
 const { 
   startRecording, 
   stopRecording, 
-  abandonedRecording, 
-  getMp3Blob,
-  deleteAbandonedRecording 
+  recordingTime,
+  isRecording,
+  audioUrl,
+  error
 } = useAudioRecording({
+  storeToDbInterval: 30, // Store chunks every 30 seconds
   logger: console.log,
-  deleteOldSessionsDaysInterval: 7,
   onRecordingStarted: (stream) => {
     console.log('Recording started')
   },
   onRecordingStopped: (audioBlob, audioUrl) => {
     console.log('Recording completed')
+  },
+  onError: (error) => {
+    console.error('Recording error:', error)
   }
+})
+
+const { getMp3Blob, abandonedRecording, deleteAbandonedRecording } = useAudioSessions({
+  deleteOldSessionsDaysInterval: 7,
+  logger: console.log
 })
 
 // Start recording
@@ -135,7 +147,7 @@ await startRecording()
 // Stop recording
 await stopRecording()
 
-// Download recorded audio as MP3
+// Download recorded audio as MP3 from a session
 async function downloadAudio(sessionId) {
   const blob = await getMp3Blob(sessionId)
   if (blob) {
@@ -170,6 +182,7 @@ The main recording component with start/stop controls and audio visualization.
 |----------|------|---------|-------------|
 | `showResult` | `boolean` | `true` | Whether to show the playback section after recording is complete |
 | `autoStart` | `boolean` | `false` | Automatically start recording when the component is mounted |
+| `storeToDbInterval` | `number` | `5` | Interval in seconds to store audio chunks to IndexedDB (e.g., 30 for 30 seconds) |
 | `logger` | `(msg: string) => void` | `undefined` | Optional custom logging function for debugging |
 
 #### Events
@@ -348,15 +361,44 @@ Run linting and fixes:
 bun check
 ```
 
-## Project Architecture
+## Architecture
+
+### Recording Pipeline
+
+The module uses a modern AudioWorklet-based architecture for high-quality PCM audio capture:
+
+1. **AudioWorklet PCM Capture**: Raw PCM audio data is captured using a custom AudioWorkletProcessor (`pcm-recorder-worklet.js`)
+2. **Chunked Storage**: PCM data is accumulated in memory and periodically converted to MP3 chunks using FFmpeg.wasm
+3. **IndexedDB Persistence**: MP3 chunks are stored as ArrayBuffers in IndexedDB for efficient storage
+4. **Final Concatenation**: On recording completion, all MP3 chunks are concatenated into a single MP3 file
+
+This architecture provides:
+- **Lower memory footprint** compared to MediaRecorder blob accumulation
+- **Better iOS compatibility** with AudioWorklet support
+- **Flexible chunk intervals** for customizable storage patterns
+- **Direct MP3 output** without intermediate WebM files
+
+### Database Schema
+
+**AudioSession**: Tracks recording metadata
+- `id`, `name`, `createdAt`, `chunkCount`, `totalSize`
+- `chunkIds`: Array maintaining chunk order
+- `sampleRate`, `numChannels`: PCM metadata for reconstruction
+
+**AudioChunk**: Stores MP3 audio chunks
+- `id`, `sessionId`, `createdAt`
+- `buffer`: ArrayBuffer containing MP3 data
+
+## Project Structure
 
 - `src/`: Main module source code
   - `module.ts`: Nuxt module entry point
   - `runtime/`: Runtime components and composables
+    - `assets/`: AudioWorklet processor files
     - `components/`: Vue components for audio recording
-    - `composables/`: Audio recording and conversion composables
+    - `composables/`: Audio recording composables and FFmpeg integration
     - `services/`: Audio storage and database services
-    - `utils/`: Utility functions for microphone handling
+    - `utils/`: Utility functions for microphone handling and PCM processing
     - `lang/`: Internationalization files
 - `playground/`: Development playground and examples
 - `tests/`: Unit and integration tests

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useAudioSessions } from "../../src/runtime/composables/audioSessions";
+import { useAudioSessions } from "../../src/runtime/composables/useAudioSessions";
+
+const logs = ref<string[]>([]);
 
 const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } =
     useAudioSessions({
@@ -38,6 +40,10 @@ async function downloadAudio(id: string) {
     </div>
 
     <div class="flex justify-center mt-10">
-        <AudioRecorder :logger="console.log" />
+        <AudioRecorder :store-to-db-interval="1" :logger="(l) => logs.push(l)" @recording-started="() => logs = []" />
+    </div>
+
+    <div v-for="log in logs">
+        <div>{{ log }}</div>
     </div>
 </template>

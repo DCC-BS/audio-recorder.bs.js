@@ -1,4 +1,9 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
     testDir: "./tests/e2e",
@@ -23,8 +28,9 @@ export default defineConfig({
         permissions: ["microphone"],
         launchOptions: {
             args: [
-                "--use-fake-ui-for-media-stream",
                 "--use-fake-device-for-media-stream",
+                "--no-sandbox",
+                `--use-file-for-fake-audio-capture=${path.resolve(__dirname, "./tests/e2e/recording.wav")}`,
             ],
         },
     },

@@ -6,6 +6,9 @@ export type CheckMicrophoneAvailabilityResult = {
 export async function checkMicrophoneAvailability(): Promise<CheckMicrophoneAvailabilityResult> {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
+
+        console.log("Available media devices:", devices);
+
         const hasAudioInput = devices.some(
             (device) => device.kind === "audioinput",
         );
