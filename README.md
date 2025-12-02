@@ -2,6 +2,7 @@
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/DCC-BS/audio-recorder.bs.js)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/DCC-BS/audio-recorder.bs.js/publish.yml)
+![NPM Version](https://img.shields.io/npm/v/%40dcc-bs%2Faudio-recorder.bs.js)
 
 Audio Recorder is a powerful Nuxt.js module that provides advanced audio recording, processing, and management capabilities for web applications. This module includes Vue components, composables, and utilities for seamless audio recording integration with client-side storage and audio format conversion.
 
@@ -45,10 +46,22 @@ Audio Recorder is a powerful Nuxt.js module that provides advanced audio recordi
 
 Install the module to your Nuxt application:
 
+#### Using Bun
 ```bash
-bun add git+https://github.com/DCC-BS/audio-recorder.bs.js#v1.1.0
+bun add @dcc-bs/audio-recorder.bs.js
 ```
-replace `v1.1.0` with the latest version tag: ![GitHub package.json version](https://img.shields.io/github/package-json/v/DCC-BS/audio-recorder.bs.js)
+
+#### Using NPM
+```bash
+npm i @dcc-bs/audio-recorder.bs.js
+```
+
+#### Using Yarn
+```bash
+yarn add @dcc-bs/audio-recorder.bs.js
+```
+
+### Configuration
 
 Add it to your `nuxt.config.ts`:
 
