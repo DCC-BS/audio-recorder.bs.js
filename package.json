@@ -78,7 +78,7 @@
         "rollup-plugin-import-css": "4.1.2"
     },
     "devDependencies": {
-        "@biomejs/biome": "2.3.7",
+        "@biomejs/biome": "2.3.8",
         "@nuxt/devtools": "3.1.1",
         "@nuxt/module-builder": "1.0.2",
         "@nuxt/schema": "4.2.1",
