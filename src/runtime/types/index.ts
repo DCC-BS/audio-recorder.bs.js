@@ -5,7 +5,11 @@ export interface CustomAction {
     variant?: string;
     loading?: boolean;
     disabled?: boolean;
-    handler: (sessionId: string, mp3Blob: Blob, deleteSession: () => Promise<void>) => void | Promise<void>;
+    handler: (
+        sessionId: string,
+        mp3Blob: Blob,
+        deleteSession: () => Promise<void>,
+    ) => void | Promise<void>;
 }
 
 export interface AudioSessionExplorerProps {

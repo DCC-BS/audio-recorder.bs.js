@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import { useFFmpeg } from "#imports";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
-import type { CustomAction, AudioSessionExplorerProps } from "../types";
+import type { AudioSessionExplorerProps, CustomAction } from "../types";
 
 const props = withDefaults(defineProps<AudioSessionExplorerProps>(), {
     showDownloadButton: true,
@@ -23,7 +23,6 @@ const deletingSessionId = ref<string | null>(null);
 const downloadingSessionId = ref<string | null>(null);
 const actionLoadingStates = ref<Record<string, string | null>>({});
 const { concatMp3 } = useFFmpeg();
-
 
 onMounted(async () => {
     try {
@@ -83,11 +82,15 @@ async function getMp3Blob(sessionId: string): Promise<Blob> {
     return await concatMp3(chunks);
 }
 
-async function handleCustomAction(action: CustomAction, sessionId: string, actionKey: string): Promise<void> {
+async function handleCustomAction(
+    action: CustomAction,
+    sessionId: string,
+    actionKey: string,
+): Promise<void> {
     actionLoadingStates.value[actionKey] = sessionId;
     try {
         const mp3Blob = await getMp3Blob(sessionId);
-        
+
         const deleteSessionFn = async () => {
             await deleteSession(sessionId);
         };

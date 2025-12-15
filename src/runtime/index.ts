@@ -1,1 +1,1 @@
-export type { CustomAction, AudioSessionExplorerProps } from "./types";
+export type { AudioSessionExplorerProps, CustomAction } from "./types";
