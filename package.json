@@ -94,7 +94,7 @@
         "unbuild": "3.6.1",
         "vitest": "4.0.17",
         "vitest-environment-nuxt": "1.0.1",
-        "vue-tsc": "3.2.1"
+        "vue-tsc": "3.2.2"
     },
     "peerDependencies": {
         "@nuxt/ui": "4.4.0",
