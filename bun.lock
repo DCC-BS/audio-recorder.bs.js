@@ -33,7 +33,7 @@
       },
       "peerDependencies": {
         "@nuxt/ui": "4.4.0",
-        "motion-v": "1.7.4",
+        "motion-v": "1.10.3",
       },
     },
   },
