@@ -73,7 +73,7 @@
         "@ffmpeg/ffmpeg": "0.12.15",
         "@ffmpeg/util": "0.12.2",
         "@nuxt/kit": "4.2.2",
-        "@nuxtjs/i18n": "10.2.1",
+        "@nuxtjs/i18n": "10.2.3",
         "dexie": "4.2.1",
         "rollup-plugin-import-css": "4.2.0"
     },
