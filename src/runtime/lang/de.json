@@ -17,6 +17,10 @@
                     "restart": "Starten Sie Ihren Browser oder Ihr Gerät neu."
                 }
             },
+            "warnings": {
+                "suspendedRecording": "Die Aufnahme wurde im Hintergrund unterbrochen. Möglicherweise fehlt ein Teil der Audioaufnahme.",
+                "dismiss": "Schliessen"
+            },
             "recordingTime": "Aufnahmezeit",
             "newRecording": "Neue Aufnahme {date}"
         },
