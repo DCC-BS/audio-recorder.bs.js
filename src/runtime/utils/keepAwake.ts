@@ -11,6 +11,10 @@ export class KeepAwake {
         this.logger = logger;
     }
 
+    setLogger(logger: (msg: string) => void): void {
+        this.logger = logger;
+    }
+
     async requestWakeLock(): Promise<void> {
         if (!("wakeLock" in navigator)) {
             this.logger("Wake Lock API not supported");

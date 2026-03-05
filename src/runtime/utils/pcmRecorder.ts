@@ -7,6 +7,7 @@ export class PCMRecorder {
     private _onContextSuspended?: () => void;
     private _logger: (msg: string) => void;
     private _wasSuspended = false;
+    private _boundHandleStateChange: () => void;
 
     constructor(
         public readonly stream: MediaStream,
@@ -17,10 +18,11 @@ export class PCMRecorder {
     ) {
         this._logger = () => {};
         this.keepAwake = new KeepAwake(this._logger);
+        this._boundHandleStateChange = this.handleStateChange.bind(this);
 
         this.audioContext.addEventListener(
             "statechange",
-            this.handleStateChange.bind(this),
+            this._boundHandleStateChange,
         );
 
         pcmWorklet.port.onmessage = async (event) => {
@@ -39,7 +41,7 @@ export class PCMRecorder {
 
     setLogger(logger: (msg: string) => void): void {
         this._logger = logger;
-        this.keepAwake = new KeepAwake(logger);
+        this.keepAwake.setLogger(logger);
     }
 
     setOnContextSuspended(callback: () => void): void {
@@ -90,7 +92,7 @@ export class PCMRecorder {
 
         this.audioContext.removeEventListener(
             "statechange",
-            this.handleStateChange.bind(this),
+            this._boundHandleStateChange,
         );
 
         for (const track of this.stream.getTracks()) {
