@@ -62,9 +62,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
     const { startTime, stopTime, recordingTime } = useRecordingTime();
 
-    // outputs
     const isRecording = ref(false);
     const isProcessing = ref(false);
+    const wasSuspended = ref(false);
 
     const error = ref<string>();
     const audioBlob = ref<Blob>();
@@ -78,7 +78,17 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     let pcmArrays: Float32Array[] = [];
     let totalSamples = 0;
 
+    const handleVisibilityChange = async () => {
+        if (pcmRecorder && isRecording.value) {
+            await pcmRecorder.handleVisibilityChange();
+        }
+    };
+
     onUnmounted(() => {
+        document.removeEventListener(
+            "visibilitychange",
+            handleVisibilityChange,
+        );
         if (pcmRecorder) {
             abortRecording();
         }
@@ -97,16 +107,25 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         try {
             pcmRecorder = await startPcmRecorder();
 
+            pcmRecorder.setLogger(opt.logger);
+            pcmRecorder.setOnContextSuspended(() => {
+                wasSuspended.value = true;
+                opt.logger("AudioContext was suspended during recording");
+            });
+
+            document.addEventListener(
+                "visibilitychange",
+                handleVisibilityChange,
+            );
+
             currentSession.value = await audioStorage.createSession(
                 `${t("audio-recorder.audio.newRecording", { date: new Date().toLocaleString() })}`,
                 pcmRecorder.sampleRate,
                 1,
             );
 
-            // Initialize visualization
             opt.onRecordingStarted(pcmRecorder.stream);
 
-            // Update UI state
             isRecording.value = true;
 
             startTime();
@@ -125,12 +144,10 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
             const sampleRate = pcmRecorder.sampleRate;
 
-            // Receive raw PCM frames from the worklet
             pcmRecorder.onPCMData(async (pcmData: Float32Array) => {
                 pcmArrays.push(pcmData);
                 totalSamples += pcmData.length;
 
-                // Calculate total duration of accumulated PCM data
                 const durationInSeconds = totalSamples / sampleRate;
 
                 if (durationInSeconds >= opt.storeToDbInterval) {
@@ -165,7 +182,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             console.error(e);
             error.value = handleMicrophoneError(e as Error);
 
-            // Clean up orphaned session if created
             try {
                 if (currentSession.value) {
                     await audioStorage.deleteSession(currentSession.value);
@@ -235,6 +251,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     }
 
     async function abortRecording(): Promise<void> {
+        document.removeEventListener(
+            "visibilitychange",
+            handleVisibilityChange,
+        );
+
         if (!pcmRecorder) {
             console.error("pcmRecorder is not initialized");
             return;
@@ -245,10 +266,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
             await pcmRecorder.stop();
 
-            // Clear references
             pcmRecorder = undefined;
 
-            // Clear recording timer
             stopTime();
         } catch (e) {
             console.error("Error aborting recording:", e);
@@ -275,5 +294,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         currentSession,
         resetRecording,
         error,
+        wasSuspended,
     };
 }

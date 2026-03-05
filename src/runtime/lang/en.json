@@ -17,6 +17,10 @@
                     "restart": "Restart your browser or device."
                 }
             },
+            "warnings": {
+                "suspendedRecording": "Recording was interrupted while in background. Some audio may be missing.",
+                "dismiss": "Dismiss"
+            },
             "recordingTime": "Recording time",
             "newRecording": "New recording {date}"
         },

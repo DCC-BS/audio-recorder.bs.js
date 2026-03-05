@@ -28,6 +28,7 @@ const emit = defineEmits<{
 
 const stream = ref<MediaStream>();
 const { t } = useI18n();
+const showSuspendedWarning = ref(true);
 
 const {
     isRecording,
@@ -37,9 +38,11 @@ const {
     recordingTime,
     error,
     audioUrl,
+    wasSuspended,
 } = useAudioRecording({
     onRecordingStarted: (s: MediaStream) => {
         stream.value = s;
+        showSuspendedWarning.value = true;
         emit("recording-started", s);
     },
     onRecordingStopped: (audioBlob: Blob, audioUrl: string) => {
@@ -61,6 +64,10 @@ const formattedRecordingTime = computed(() => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 });
 
+const dismissSuspendedWarning = () => {
+    showSuspendedWarning.value = false;
+};
+
 defineExpose({
     isRecording,
     isProcessing,
@@ -70,6 +77,7 @@ defineExpose({
     formattedRecordingTime,
     error,
     audioUrl,
+    wasSuspended,
 });
 </script>
 
@@ -175,9 +183,57 @@ defineExpose({
                     </a>
                 </motion.div>
             </motion.div>
-        </AnimatePresence>
+		</AnimatePresence>
 
-        <!-- Error Messages -->
+		<!-- Suspended Recording Warning -->
+		<AnimatePresence>
+			<motion.div
+				v-if="wasSuspended && showSuspendedWarning"
+				key="suspended-warning"
+				:initial="{ opacity: 0, y: -20 }"
+				:animate="{ opacity: 1, y: 0 }"
+				:exit="{ opacity: 0, y: -20 }"
+				:transition="{ duration: 0.3 }"
+				class="mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200/50 dark:border-amber-700/50"
+			>
+				<div class="flex items-start gap-3">
+					<div
+						class="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+					>
+						<svg
+							class="w-3 h-3 text-white"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</div>
+					<p
+						class="flex-1 text-amber-800 dark:text-amber-200 text-sm font-medium"
+					>
+						{{ t("audio-recorder.audio.warnings.suspendedRecording") }}
+					</p>
+					<button
+						@click="dismissSuspendedWarning"
+						class="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
+					>
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+							<path
+								fill-rule="evenodd"
+								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</button>
+				</div>
+			</motion.div>
+		</AnimatePresence>
+
+		<!-- Error Messages -->
         <AnimatePresence>
             <motion.div v-if="error" key="error-section" :initial="{ opacity: 0, x: -20, scale: 0.95 }"
                 :animate="{ opacity: 1, x: 0, scale: 1 }" :exit="{ opacity: 0, x: 20, scale: 0.95 }"

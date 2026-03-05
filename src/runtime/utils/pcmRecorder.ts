@@ -1,7 +1,13 @@
 import PCMAudioWorkletUrl from "../assets/pcm-recorder-worklet.js?url";
+import { KeepAwake } from "./keepAwake";
 
 export class PCMRecorder {
     listeners: Array<(data: Float32Array) => void> = [];
+    private keepAwake: KeepAwake;
+    private _onContextSuspended?: () => void;
+    private _logger: (msg: string) => void;
+    private _wasSuspended = false;
+    private _boundHandleStateChange: () => void;
 
     constructor(
         public readonly stream: MediaStream,
@@ -10,7 +16,15 @@ export class PCMRecorder {
         public readonly source: MediaStreamAudioSourceNode,
         public readonly sampleRate: number = audioContext.sampleRate,
     ) {
-        // Receive raw PCM frames from the worklet
+        this._logger = () => {};
+        this.keepAwake = new KeepAwake(this._logger);
+        this._boundHandleStateChange = this.handleStateChange.bind(this);
+
+        this.audioContext.addEventListener(
+            "statechange",
+            this._boundHandleStateChange,
+        );
+
         pcmWorklet.port.onmessage = async (event) => {
             try {
                 if (event.data.type === "data") {
@@ -25,25 +39,73 @@ export class PCMRecorder {
         };
     }
 
+    setLogger(logger: (msg: string) => void): void {
+        this._logger = logger;
+        this.keepAwake.setLogger(logger);
+    }
+
+    setOnContextSuspended(callback: () => void): void {
+        this._onContextSuspended = callback;
+    }
+
+    get wasSuspended(): boolean {
+        return this._wasSuspended;
+    }
+
+    private handleStateChange(): void {
+        if (this.audioContext.state === "suspended") {
+            this._logger("AudioContext was suspended");
+            this._wasSuspended = true;
+            this._onContextSuspended?.();
+            this.audioContext.resume().catch((e) => {
+                this._logger(`Failed to resume AudioContext: ${e}`);
+            });
+        }
+    }
+
     public onPCMData(listener: (data: Float32Array) => void) {
         this.listeners.push(listener);
     }
 
+    public async startKeepAwake(): Promise<void> {
+        await this.keepAwake.start();
+    }
+
+    public stopKeepAwake(): void {
+        this.keepAwake.stop();
+    }
+
+    public async handleVisibilityChange(): Promise<void> {
+        await this.keepAwake.handleVisibilityChange();
+
+        if (
+            document.visibilityState === "visible" &&
+            this.audioContext.state === "suspended"
+        ) {
+            this._logger("Resuming AudioContext after visibility change");
+            await this.audioContext.resume();
+        }
+    }
+
     public async stop() {
+        this.keepAwake.stop();
+
+        this.audioContext.removeEventListener(
+            "statechange",
+            this._boundHandleStateChange,
+        );
+
         for (const track of this.stream.getTracks()) {
             track.stop();
         }
 
-        // Stop the worklet message port
         this.pcmWorklet.port.postMessage({ type: "stop" });
         this.pcmWorklet.port.onmessage = null;
         this.pcmWorklet.port.close();
         this.pcmWorklet.disconnect();
 
-        // Disconnect audio nodes
         this.source.disconnect();
 
-        // Close the audio context (this will unload the worklet module)
         await this.audioContext.close();
     }
 }
@@ -65,9 +127,8 @@ export async function startPcmRecorder() {
     });
 
     source.connect(pcmWorklet);
-    pcmWorklet.connect(audioContext.destination); // or audioContext.createGain() if you don’t want local playback
+    pcmWorklet.connect(audioContext.destination);
 
-    // Setup for iOS background audio
     if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: "Active Recording",
@@ -78,5 +139,8 @@ export async function startPcmRecorder() {
         navigator.mediaSession.playbackState = "none";
     }
 
-    return new PCMRecorder(stream, audioContext, pcmWorklet, source);
+    const recorder = new PCMRecorder(stream, audioContext, pcmWorklet, source);
+    await recorder.startKeepAwake();
+
+    return recorder;
 }
