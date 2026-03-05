@@ -30,10 +30,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/DCC-BS/audio-recorder.bs.js"
+        "url": "git+https://github.com/DCC-BS/audio-recorder.bs.js.git"
     },
     "publishConfig": {
-        "registry": "https://npm.pkg.github.com/"
+        "access": "public"
     },
     "exports": {
         ".": {
