@@ -85,12 +85,24 @@ defineExpose({
     <div>
         <!-- Start Recording Button -->
         <AnimatePresence>
-            <motion.div v-if="!isRecording" key="start-button" :initial="{ opacity: 0, scale: 0.8, y: 20 }"
-                :animate="{ opacity: 1, scale: 1, y: 0 }" :exit="{ opacity: 0, scale: 0.8, y: -20 }"
-                :transition="{ duration: 0.5, type: 'spring', bounce: 0.3 }" class="text-center">
+            <motion.div
+                v-if="!isRecording"
+                key="start-button"
+                :initial="{ opacity: 0, scale: 0.8, y: 20 }"
+                :animate="{ opacity: 1, scale: 1, y: 0 }"
+                :exit="{ opacity: 0, scale: 0.8, y: -20 }"
+                :transition="{ duration: 0.5, type: 'spring', bounce: 0.3 }"
+                class="text-center"
+            >
                 <div>
-                    <UButton color="primary" variant="link" icon="i-lucide-mic" @click="startRecording" size="xl">
-                        {{ t('audio-recorder.audio.startRecording') }}
+                    <UButton
+                        color="primary"
+                        variant="link"
+                        icon="i-lucide-mic"
+                        @click="startRecording"
+                        size="xl"
+                    >
+                        {{ t("audio-recorder.audio.startRecording") }}
                     </UButton>
                 </div>
             </motion.div>
@@ -98,44 +110,74 @@ defineExpose({
 
         <!-- Recording Indicator -->
         <AnimatePresence>
-            <motion.div v-if="isRecording" key="recording-section" :initial="{ opacity: 0, scale: 0.9 }"
-                :animate="{ opacity: 1, scale: 1 }" :exit="{ opacity: 0, scale: 0.9 }"
-                :transition="{ duration: 0.4, type: 'spring' }" class="text-center space-y-6">
+            <motion.div
+                v-if="isRecording"
+                key="recording-section"
+                :initial="{ opacity: 0, scale: 0.9 }"
+                :animate="{ opacity: 1, scale: 1 }"
+                :exit="{ opacity: 0, scale: 0.9 }"
+                :transition="{ duration: 0.4, type: 'spring' }"
+                class="text-center space-y-6"
+            >
                 <!-- Recording Status -->
                 <div class="flex items-center justify-center gap-3">
-                    <motion.div class="w-4 h-4 bg-red-500 rounded-full"
+                    <motion.div
+                        class="w-4 h-4 bg-red-500 rounded-full"
                         :animate="{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }"
-                        :transition="{ duration: 1.5, repeat: Infinity }"></motion.div>
-                    <span class="text-lg font-medium text-red-600 dark:text-red-400">
-                        {{ t('audio-recorder.audio.recordingInProgress') }}
+                        :transition="{ duration: 1.5, repeat: Infinity }"
+                    ></motion.div>
+                    <span
+                        class="text-lg font-medium text-red-600 dark:text-red-400"
+                    >
+                        {{ t("audio-recorder.audio.recordingInProgress") }}
                     </span>
                 </div>
 
                 <!-- Recording Time -->
                 <motion.div
                     class="bg-slate-900/5 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/30 dark:border-slate-700/30"
-                    :initial="{ scale: 0.8 }" :animate="{ scale: 1 }" :transition="{ delay: 0.2, type: 'spring' }">
-                    <motion.div layout
-                        class="recording-time text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2">
+                    :initial="{ scale: 0.8 }"
+                    :animate="{ scale: 1 }"
+                    :transition="{ delay: 0.2, type: 'spring' }"
+                >
+                    <motion.div
+                        layout
+                        class="recording-time text-4xl font-mono font-bold text-slate-800 dark:text-slate-200 mb-2"
+                    >
                         {{ formattedRecordingTime }}
                     </motion.div>
-                    <p class="text-sm text-slate-600 dark:text-slate-400">{{ t("audio-recorder.audio.recordingTime") }}
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
+                        {{ t("audio-recorder.audio.recordingTime") }}
                     </p>
                 </motion.div>
 
                 <!-- Audio Visualizer -->
-                <motion.div :initial="{ opacity: 0, y: 20 }" :animate="{ opacity: 1, y: 0 }"
+                <motion.div
+                    :initial="{ opacity: 0, y: 20 }"
+                    :animate="{ opacity: 1, y: 0 }"
                     :transition="{ delay: 0.4 }"
-                    class="bg-slate-900/5 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/30 dark:border-slate-700/30">
-                    <AudioVisualizer :stream="stream" :isRecording="isRecording" />
+                    class="bg-slate-900/5 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/30 dark:border-slate-700/30"
+                >
+                    <AudioVisualizer
+                        :stream="stream"
+                        :isRecording="isRecording"
+                    />
                 </motion.div>
 
                 <!-- Stop Recording Button -->
-                <motion.div :initial="{ opacity: 0, scale: 0.8 }" :animate="{ opacity: 1, scale: 1 }"
-                    :transition="{ delay: 0.6, type: 'spring' }">
+                <motion.div
+                    :initial="{ opacity: 0, scale: 0.8 }"
+                    :animate="{ opacity: 1, scale: 1 }"
+                    :transition="{ delay: 0.6, type: 'spring' }"
+                >
                     <div>
-                        <UButton color="secondary" variant="link" icon="i-lucide-square" @click="stopRecording">
-                            {{ t('audio-recorder.audio.stopRecording') }}
+                        <UButton
+                            color="secondary"
+                            variant="link"
+                            icon="i-lucide-square"
+                            @click="stopRecording"
+                        >
+                            {{ t("audio-recorder.audio.stopRecording") }}
                         </UButton>
                     </div>
                 </motion.div>
@@ -144,14 +186,25 @@ defineExpose({
 
         <!-- Processing Indicator -->
         <AnimatePresence>
-            <motion.div v-if="isProcessing" key="processing-section" :initial="{ opacity: 0, scale: 0.9 }"
-                :animate="{ opacity: 1, scale: 1 }" :exit="{ opacity: 0, scale: 0.9 }"
-                :transition="{ duration: 0.4, type: 'spring' }" class="text-center space-y-6 mt-4">
-                <div class="flex items-center align-middle justify-center gap-2">
-                    <UIcon name="i-lucide-loader-circle" class="animate-spin text-blue-400" />
+            <motion.div
+                v-if="isProcessing"
+                key="processing-section"
+                :initial="{ opacity: 0, scale: 0.9 }"
+                :animate="{ opacity: 1, scale: 1 }"
+                :exit="{ opacity: 0, scale: 0.9 }"
+                :transition="{ duration: 0.4, type: 'spring' }"
+                class="text-center space-y-6 mt-4"
+            >
+                <div
+                    class="flex items-center align-middle justify-center gap-2"
+                >
+                    <UIcon
+                        name="i-lucide-loader-circle"
+                        class="animate-spin text-blue-400"
+                    />
 
                     <span class="text-blue-700 dark:text-blue-300 font-medium">
-                        {{ t('audio-recorder.audio.processingRecording') }}
+                        {{ t("audio-recorder.audio.processingRecording") }}
                     </span>
                 </div>
             </motion.div>
@@ -159,115 +212,198 @@ defineExpose({
 
         <!-- Playback Section -->
         <AnimatePresence>
-            <motion.div v-if="audioUrl && props.showResult" key="playback-section"
-                :initial="{ opacity: 0, y: 30, scale: 0.9 }" :animate="{ opacity: 1, y: 0, scale: 1 }"
-                :exit="{ opacity: 0, y: -30, scale: 0.9 }" :transition="{ duration: 0.5, type: 'spring', bounce: 0.2 }"
-                class="mt-8 bg-green-50 rounded-2xl p-6 border border-green-200/50">
-                <motion.div class="text-center space-y-4" :initial="{ y: 20 }" :animate="{ y: 0 }"
-                    :transition="{ delay: 0.2 }">
-                    <motion.div class="flex items-center justify-center gap-2 mb-4" :initial="{ opacity: 0 }"
-                        :animate="{ opacity: 1 }" :transition="{ delay: 0.3 }">
+            <motion.div
+                v-if="audioUrl && props.showResult"
+                key="playback-section"
+                :initial="{ opacity: 0, y: 30, scale: 0.9 }"
+                :animate="{ opacity: 1, y: 0, scale: 1 }"
+                :exit="{ opacity: 0, y: -30, scale: 0.9 }"
+                :transition="{ duration: 0.5, type: 'spring', bounce: 0.2 }"
+                class="mt-8 bg-green-50 rounded-2xl p-6 border border-green-200/50"
+            >
+                <motion.div
+                    class="text-center space-y-4"
+                    :initial="{ y: 20 }"
+                    :animate="{ y: 0 }"
+                    :transition="{ delay: 0.2 }"
+                >
+                    <motion.div
+                        class="flex items-center justify-center gap-2 mb-4"
+                        :initial="{ opacity: 0 }"
+                        :animate="{ opacity: 1 }"
+                        :transition="{ delay: 0.3 }"
+                    >
                         <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span class="text-green-700 dark:text-green-300 font-medium">{{
-                            t('audio-recorder.audio.recordingComplete') }} </span>
+                        <span
+                            class="text-green-700 dark:text-green-300 font-medium"
+                            >{{ t("audio-recorder.audio.recordingComplete") }}
+                        </span>
                     </motion.div>
 
-                    <motion.div :whileHover="{ scale: 1.02 }" :transition="{ type: 'spring', stiffness: 300 }">
+                    <motion.div
+                        :whileHover="{ scale: 1.02 }"
+                        :transition="{ type: 'spring', stiffness: 300 }"
+                    >
                         <audio :src="audioUrl" controls class="w-full"></audio>
                     </motion.div>
 
-                    <a :href="audioUrl" :download="`recording-${new Date().toISOString()}.webm`">
-                        <UButton icon="i-lucide-download" color="primary" variant="link">
-                            {{ t('audio-recorder.audio.downloadRecording') }}
+                    <a
+                        :href="audioUrl"
+                        :download="`recording-${new Date().toISOString()}.webm`"
+                    >
+                        <UButton
+                            icon="i-lucide-download"
+                            color="primary"
+                            variant="link"
+                        >
+                            {{ t("audio-recorder.audio.downloadRecording") }}
                         </UButton>
                     </a>
                 </motion.div>
             </motion.div>
-		</AnimatePresence>
+        </AnimatePresence>
 
-		<!-- Suspended Recording Warning -->
-		<AnimatePresence>
-			<motion.div
-				v-if="wasSuspended && showSuspendedWarning"
-				key="suspended-warning"
-				:initial="{ opacity: 0, y: -20 }"
-				:animate="{ opacity: 1, y: 0 }"
-				:exit="{ opacity: 0, y: -20 }"
-				:transition="{ duration: 0.3 }"
-				class="mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200/50 dark:border-amber-700/50"
-			>
-				<div class="flex items-start gap-3">
-					<div
-						class="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-					>
-						<svg
-							class="w-3 h-3 text-white"
-							fill="currentColor"
-							viewBox="0 0 20 20"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-					<p
-						class="flex-1 text-amber-800 dark:text-amber-200 text-sm font-medium"
-					>
-						{{ t("audio-recorder.audio.warnings.suspendedRecording") }}
-					</p>
-					<button
-						@click="dismissSuspendedWarning"
-						class="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
-					>
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-							<path
-								fill-rule="evenodd"
-								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</button>
-				</div>
-			</motion.div>
-		</AnimatePresence>
-
-		<!-- Error Messages -->
+        <!-- Suspended Recording Warning -->
         <AnimatePresence>
-            <motion.div v-if="error" key="error-section" :initial="{ opacity: 0, x: -20, scale: 0.95 }"
-                :animate="{ opacity: 1, x: 0, scale: 1 }" :exit="{ opacity: 0, x: 20, scale: 0.95 }"
+            <motion.div
+                v-if="wasSuspended && showSuspendedWarning"
+                key="suspended-warning"
+                :initial="{ opacity: 0, y: -20 }"
+                :animate="{ opacity: 1, y: 0 }"
+                :exit="{ opacity: 0, y: -20 }"
+                :transition="{ duration: 0.3 }"
+                class="mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200/50 dark:border-amber-700/50"
+            >
+                <div class="flex items-start gap-3">
+                    <div
+                        class="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                    >
+                        <svg
+                            class="w-3 h-3 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </div>
+                    <p
+                        class="flex-1 text-amber-800 dark:text-amber-200 text-sm font-medium"
+                    >
+                        {{
+                            t(
+                                "audio-recorder.audio.warnings.suspendedRecording",
+                            )
+                        }}
+                    </p>
+                    <button
+                        @click="dismissSuspendedWarning"
+                        class="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            </motion.div>
+        </AnimatePresence>
+
+        <!-- Error Messages -->
+        <AnimatePresence>
+            <motion.div
+                v-if="error"
+                key="error-section"
+                :initial="{ opacity: 0, x: -20, scale: 0.95 }"
+                :animate="{ opacity: 1, x: 0, scale: 1 }"
+                :exit="{ opacity: 0, x: 20, scale: 0.95 }"
                 :transition="{ duration: 0.4, type: 'spring' }"
-                class="mt-8 bg-red-50 dark:bg-red-900/20 rounded-2xl p-6 border border-red-200/50 dark:border-red-700/50">
-                <motion.div class="flex items-start gap-3" :initial="{ y: 10 }" :animate="{ y: 0 }"
-                    :transition="{ delay: 0.1 }">
+                class="mt-8 bg-red-50 dark:bg-red-900/20 rounded-2xl p-6 border border-red-200/50 dark:border-red-700/50"
+            >
+                <motion.div
+                    class="flex items-start gap-3"
+                    :initial="{ y: 10 }"
+                    :animate="{ y: 0 }"
+                    :transition="{ delay: 0.1 }"
+                >
                     <motion.div
                         class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                        :animate="{ rotate: [0, 10, -10, 0] }" :transition="{ duration: 0.5, delay: 0.2 }">
-                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd"
+                        :animate="{ rotate: [0, 10, -10, 0] }"
+                        :transition="{ duration: 0.5, delay: 0.2 }"
+                    >
+                        <svg
+                            class="w-3 h-3 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                        >
+                            <path
+                                fill-rule="evenodd"
                                 d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clip-rule="evenodd"></path>
+                                clip-rule="evenodd"
+                            ></path>
                         </svg>
                     </motion.div>
                     <div class="flex-1">
-                        <motion.p class="text-red-800 dark:text-red-200 font-medium mb-3" :initial="{ opacity: 0 }"
-                            :animate="{ opacity: 1 }" :transition="{ delay: 0.2 }">
+                        <motion.p
+                            class="text-red-800 dark:text-red-200 font-medium mb-3"
+                            :initial="{ opacity: 0 }"
+                            :animate="{ opacity: 1 }"
+                            :transition="{ delay: 0.2 }"
+                        >
                             {{ error }}
                         </motion.p>
-                        <motion.ul v-if="
-                            error.includes(t('audio-recorder.audio.errors.noMicrophoneFound')) ||
-                            error.includes(t('audio-recorder.audio.errors.accessDenied'))
-                        " class="space-y-2 text-red-700 dark:text-red-300 text-sm" :initial="{ opacity: 0 }"
-                            :animate="{ opacity: 1 }" :transition="{ delay: 0.4 }">
-                            <motion.li class="flex items-center gap-2" v-for="(item, index) in [
-                                t('audio-recorder.audio.errors.troubleshooting.properlyConnected'),
-                                t('audio-recorder.audio.errors.troubleshooting.checkPermissions'),
-                                t('audio-recorder.audio.errors.troubleshooting.differentBrowser'),
-                                t('audio-recorder.audio.errors.troubleshooting.restart')
-                            ]" :key="index" :initial="{ opacity: 0, x: -10 }" :animate="{ opacity: 1, x: 0 }"
-                                :transition="{ delay: 0.5 + index * 0.1 }">
-                                <div class="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                        <motion.ul
+                            v-if="
+                                error.includes(
+                                    t(
+                                        'audio-recorder.audio.errors.noMicrophoneFound',
+                                    ),
+                                ) ||
+                                error.includes(
+                                    t(
+                                        'audio-recorder.audio.errors.accessDenied',
+                                    ),
+                                )
+                            "
+                            class="space-y-2 text-red-700 dark:text-red-300 text-sm"
+                            :initial="{ opacity: 0 }"
+                            :animate="{ opacity: 1 }"
+                            :transition="{ delay: 0.4 }"
+                        >
+                            <motion.li
+                                class="flex items-center gap-2"
+                                v-for="(item, index) in [
+                                    t(
+                                        'audio-recorder.audio.errors.troubleshooting.properlyConnected',
+                                    ),
+                                    t(
+                                        'audio-recorder.audio.errors.troubleshooting.checkPermissions',
+                                    ),
+                                    t(
+                                        'audio-recorder.audio.errors.troubleshooting.differentBrowser',
+                                    ),
+                                    t(
+                                        'audio-recorder.audio.errors.troubleshooting.restart',
+                                    ),
+                                ]"
+                                :key="index"
+                                :initial="{ opacity: 0, x: -10 }"
+                                :animate="{ opacity: 1, x: 0 }"
+                                :transition="{ delay: 0.5 + index * 0.1 }"
+                            >
+                                <div
+                                    class="w-1.5 h-1.5 bg-red-400 rounded-full"
+                                ></div>
                                 {{ item }}
                             </motion.li>
                         </motion.ul>
