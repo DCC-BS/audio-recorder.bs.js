@@ -1,4 +1,4 @@
-import { isReadonly, onUnmounted, ref } from "vue";
+import { onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { AudioStorageService } from "../services/audioStorage";
 import {
