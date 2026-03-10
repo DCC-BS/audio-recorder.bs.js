@@ -220,9 +220,10 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     }
 
     async function stopRecording(): Promise<void> {
+        isRecording.value = false;
+        isProcessing.value = true;
         await appendMp3();
         await abortRecording();
-        isProcessing.value = true;
 
         if (!currentSession.value) {
             throw new Error("No active session for recording");
