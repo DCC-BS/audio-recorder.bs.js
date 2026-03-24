@@ -1,7 +1,7 @@
 {
     "name": "@dcc-bs/audio-recorder.bs.js",
     "description": "Audio Recorder is a powerful Nuxt.js module that provides advanced audio recording, processing, and management capabilities for web applications.",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "license": "MIT",
     "type": "module",
     "homepage": "https://dcc-bs.github.io/documentation/",
