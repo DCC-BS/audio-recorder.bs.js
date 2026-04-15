@@ -13,15 +13,21 @@ import { useRecordingTime } from "./useRecodingTime";
 /**
  * Options for audio recording
  * @property onRecordingStarted - Callback when recording starts, providing the MediaStream
- * @property storeToDbInterval - Interval in seconds to store audio blobs to the database (default: 30000 (30 seconds))
- * @property mimeType - MIME type for the MediaRecorder (default: "audio/webm;codecs=opus")
+ * @property onRecordingStopped - Callback when recording stops with the audio Blob and object URL
+ * @property onError - Callback when an error occurs during recording
+ * @property storeToDbInterval - Interval in seconds to store audio chunks to IndexedDB (default: 30)
+ * @property onStore - Callback when an MP3 chunk is created during recording (fires every storeToDbInterval seconds)
+ * @property logger - Custom logging function for debugging
+ * @property disableDefaultStore - Disable the default IndexedDB storage. Useful when handling storage yourself via the onStore callback (default: false)
  */
 export type RecordingOptions = {
     onRecordingStarted?: (stream: MediaStream) => void;
     onRecordingStopped?: (audioBlob: Blob, audioUrl: string) => void;
     onError?: (error: string) => void;
     storeToDbInterval?: number;
+    onStore?: (mp3Blob: Blob) => void | Promise<void>;
     logger?: (msg: string) => void;
+    disableDefaultStore?: boolean;
 };
 
 const optionsDefault: Required<RecordingOptions> = {
@@ -29,7 +35,9 @@ const optionsDefault: Required<RecordingOptions> = {
     onRecordingStopped: () => {},
     onError: () => {},
     storeToDbInterval: 30, // 30 seconds
+    onStore: () => {},
     logger: (_: string) => {},
+    disableDefaultStore: false,
 };
 
 /**
@@ -208,6 +216,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         pcmArrays = [];
 
         const mp3Blob = await pcmToMp3(data, pcmRecorder.sampleRate, 1);
+
+        opt.onStore(mp3Blob);
+
+        if (opt.disableDefaultStore) {
+            return;
+        }
 
         await audioStorage
             .storeAudioChunk(

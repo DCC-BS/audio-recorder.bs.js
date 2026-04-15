@@ -89,6 +89,22 @@ add the following line to your main CSS file:
 @import '@dcc-bs/audio-recorder.bs.js';
 ```
 
+## Client-Only Rendering
+
+All components in this module use the `.client.vue` suffix, which means Nuxt automatically renders them only on the client side. This is required because audio recording relies on browser APIs (MediaRecorder, AudioContext, IndexedDB) that are not available during server-side rendering.
+
+Alternatively, you can also wrap any component with the [`<ClientOnly>` component](https://nuxt.com/docs/4.x/api/components/client-only):
+
+```vue
+<template>
+  <ClientOnly>
+    <AudioRecorder />
+  </ClientOnly>
+</template>
+```
+
+See the [Nuxt client-only pages documentation](https://nuxt.com/docs/4.x/directory-structure/app/pages#client-only-pages) for more details on how Nuxt handles client-only rendering.
+
 ## Usage
 
 ### Basic Audio Recording
@@ -124,6 +140,20 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 ### Using Audio Recording Composable
 
+#### RecordingOptions
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `onRecordingStarted` | `(stream: MediaStream) => void` | `() => {}` | Callback when recording starts, providing the MediaStream |
+| `onRecordingStopped` | `(audioBlob: Blob, audioUrl: string) => void` | `() => {}` | Callback when recording stops with the audio data |
+| `onError` | `(error: string) => void` | `() => {}` | Callback when an error occurs during recording |
+| `storeToDbInterval` | `number` | `30` | Interval in seconds to store audio chunks to IndexedDB |
+| `onStore` | `(mp3Blob: Blob) => void \| Promise<void>` | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds) |
+| `logger` | `(msg: string) => void` | `() => {}` | Custom logging function for debugging |
+| `disableDefaultStore` | `boolean` | `false` | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback |
+
+#### Example
+
 ```vue
 <script setup>
 import { useAudioRecording, useAudioSessions } from '@dcc-bs/audio-recorder.bs.js'
@@ -133,10 +163,16 @@ const {
   stopRecording, 
   recordingTime,
   isRecording,
+  isProcessing,
   audioUrl,
-  error
+  audioBlob,
+  currentSession,
+  error,
+  wasSuspended,
+  resetRecording
 } = useAudioRecording({
-  storeToDbInterval: 30, // Store chunks every 30 seconds
+  storeToDbInterval: 30,
+  disableDefaultStore: false,
   logger: console.log,
   onRecordingStarted: (stream) => {
     console.log('Recording started')
@@ -146,6 +182,9 @@ const {
   },
   onError: (error) => {
     console.error('Recording error:', error)
+  },
+  onStore: (mp3Blob) => {
+    console.log('MP3 chunk stored:', mp3Blob)
   }
 })
 
