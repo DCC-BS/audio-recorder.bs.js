@@ -76,7 +76,7 @@
         "@nuxtjs/i18n": "10.2.3",
         "baseline-browser-mapping": "^2.10.0",
         "caniuse-lite": "^1.0.30001776",
-        "dexie": "4.3.0",
+        "dexie": "4.4.2",
         "rollup-plugin-import-css": "4.2.0"
     },
     "devDependencies": {
