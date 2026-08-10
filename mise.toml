@@ -1,0 +1,95 @@
+[tools]
+bun = "1.3.0"
+node = "24.9.0"
+usage = "3.5.6"
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "install npm packages and prepare the playground"
+run = [
+    "bun install",
+    "bunx nuxt-module-build build --stub",
+    "bunx nuxt-module-build prepare",
+    "bunx nuxi prepare playground",
+]
+
+[tasks."nuxt:prepare"]
+description = "generate Nuxt types for the playground"
+run = "bunx nuxi prepare playground"
+
+# ── Development ───────────────────────────────────────────────────────────────
+
+[tasks.dev]
+description = "start the playground dev server"
+run = "bunx nuxi dev playground"
+
+[tasks."dev:build"]
+description = "build the playground"
+run = "bunx nuxi build playground"
+
+[tasks."dev:prepare"]
+description = "prepare the module for development (stub build + playground types)"
+run = [
+    "bunx nuxt-module-build build --stub",
+    "bunx nuxt-module-build prepare",
+    "bunx nuxi prepare playground",
+]
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+[tasks.prepack]
+description = "build the module for packaging"
+run = "bunx nuxt-module-build build"
+
+[tasks.generate]
+description = "generate the playground static site"
+run = "bunx nuxi generate playground"
+
+# ── Type Checking & Linting ───────────────────────────────────────────────────
+
+[tasks.tsc]
+description = "run TypeScript type checking"
+run = "bunx vue-tsc --noEmit"
+
+[tasks.lint]
+description = "format code with Biome"
+run = "bunx biome format --write"
+
+[tasks.check]
+description = "check and fix linting issues"
+run = "bunx biome check --fix"
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+
+[tasks.test]
+description = "run unit tests"
+run = "bunx vitest"
+
+[tasks."test:watch"]
+description = "run unit tests in watch mode"
+run = "bunx vitest --watch"
+
+[tasks."test:coverage"]
+description = "run unit tests with coverage report"
+run = "bunx vitest run --coverage"
+
+[tasks."test:e2e"]
+description = "run Playwright E2E tests"
+run = "bunx playwright test"
+
+[tasks."test:e2e:ui"]
+description = "run Playwright E2E tests with the interactive UI"
+run = "bunx playwright test --ui"
+
+# ── Release ───────────────────────────────────────────────────────────────────
+
+[tasks.release]
+description = "lint, test, build, tag and release"
+run = [
+    "bunx biome check",
+    "bunx vitest run",
+    "bunx nuxt-module-build build",
+    "bunx changelogen --release",
+    "git push --follow-tags",
+]
