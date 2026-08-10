@@ -28,6 +28,7 @@ dist
 .env
 
 # Testing
+tests/nuxt/
 reports
 coverage
 *.lcov
