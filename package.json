@@ -60,10 +60,10 @@
         "dev": "nuxi dev playground",
         "dev:build": "nuxi build playground",
         "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
-        "release": "bun lint && bun test && bun prepack && changelogen --release && git push --follow-tags",
+        "release": "bun run lint && bun run test && bun run prepack && changelogen --release && git push --follow-tags",
         "lint": "biome format --write",
         "check": "biome check --fix",
-        "test": "vitest",
+        "test": "vitest run",
         "test:watch": "vitest --watch",
         "test:coverage": "vitest run --coverage",
         "test:e2e": "playwright test",
@@ -72,8 +72,6 @@
     "dependencies": {
         "@ffmpeg/ffmpeg": "0.12.15",
         "@ffmpeg/util": "0.12.2",
-        "@nuxt/kit": "4.4.2",
-        "@nuxtjs/i18n": "10.2.3",
         "baseline-browser-mapping": "^2.10.0",
         "caniuse-lite": "^1.0.30001776",
         "dexie": "4.3.0",
@@ -82,15 +80,18 @@
     "devDependencies": {
         "@biomejs/biome": "2.4.6",
         "@nuxt/devtools": "3.2.3",
+        "@nuxt/kit": "^4.5.0",
         "@nuxt/module-builder": "1.0.2",
-        "@nuxt/schema": "4.4.2",
+        "@nuxt/schema": "4.5.1",
         "@nuxt/test-utils": "4.0.0",
+        "@nuxtjs/i18n": "^10.5.0",
         "@playwright/test": "1.58.2",
         "@types/node": "25.5.0",
         "@vitest/coverage-v8": "4.1.0",
+        "@vue/test-utils": "^2.4.11",
         "changelogen": "0.6.2",
         "happy-dom": "20.8.4",
-        "nuxt": "4.4.2",
+        "nuxt": "4.5.1",
         "publish-to-git": "1.2.0",
         "typescript": "5.9.3",
         "unbuild": "3.6.1",
@@ -99,7 +100,9 @@
         "vue-tsc": "3.2.5"
     },
     "peerDependencies": {
+        "@nuxt/kit": "^4.0.0",
         "@nuxt/ui": "4.5.1",
+        "@nuxtjs/i18n": "^10.0.0",
         "motion-v": "2.0.0"
     }
 }
