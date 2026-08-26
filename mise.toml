@@ -3,6 +3,44 @@ bun = "1.3.0"
 node = "24.9.0"
 usage = "3.5.6"
 
+# System-level apt packages required to run the Playwright Chromium browser.
+# Mirrors the chromium/tools lists in playwright-core's nativeDeps for Ubuntu.
+# Applied via: mise bootstrap packages apply   (status: mise bootstrap packages status --missing)
+[bootstrap.packages]
+"apt:libasound2t64" = "latest"
+"apt:libatk-bridge2.0-0t64" = "latest"
+"apt:libatk1.0-0t64" = "latest"
+"apt:libatspi2.0-0t64" = "latest"
+"apt:libcairo2" = "latest"
+"apt:libcups2t64" = "latest"
+"apt:libdbus-1-3" = "latest"
+"apt:libdrm2" = "latest"
+"apt:libgbm1" = "latest"
+"apt:libglib2.0-0t64" = "latest"
+"apt:libnspr4" = "latest"
+"apt:libnss3" = "latest"
+"apt:libpango-1.0-0" = "latest"
+"apt:libx11-6" = "latest"
+"apt:libxcb1" = "latest"
+"apt:libxcomposite1" = "latest"
+"apt:libxdamage1" = "latest"
+"apt:libxext6" = "latest"
+"apt:libxfixes3" = "latest"
+"apt:libxkbcommon0" = "latest"
+"apt:libxrandr2" = "latest"
+"apt:libfontconfig1" = "latest"
+"apt:libfreetype6" = "latest"
+"apt:fonts-liberation" = "latest"
+"apt:fonts-noto-color-emoji" = "latest"
+"apt:fonts-unifont" = "latest"
+"apt:fonts-ipafont-gothic" = "latest"
+"apt:fonts-wqy-zenhei" = "latest"
+"apt:fonts-tlwg-loma-otf" = "latest"
+"apt:fonts-freefont-ttf" = "latest"
+"apt:xfonts-cyrillic" = "latest"
+"apt:xfonts-scalable" = "latest"
+"apt:xvfb" = "latest"
+
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 [tasks.install]
@@ -12,7 +50,15 @@ run = [
     "bunx nuxt-module-build build --stub",
     "bunx nuxt-module-build prepare",
     "bunx nuxi prepare playground",
+    "mise run playwright:install-browser",
 ]
+
+[tasks."playwright:install-browser"]
+description = "install the Playwright browser matching the pinned @playwright/test version"
+usage = 'flag "--with-deps" help="Also install OS-level dependencies via the system package manager"'
+run = '''
+bunx playwright install chromium ${usage_with_deps:+--with-deps}
+'''
 
 [tasks."nuxt:prepare"]
 description = "generate Nuxt types for the playground"
