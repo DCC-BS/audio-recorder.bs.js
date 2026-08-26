@@ -3,6 +3,9 @@ bun = "1.3.0"
 node = "24.9.0"
 usage = "3.5.6"
 
+[hooks]
+postinstall = { task = "install" }
+
 # System-level apt packages required to run the Playwright Chromium browser.
 # Mirrors the chromium/tools lists in playwright-core's nativeDeps for Ubuntu.
 # Applied via: mise bootstrap packages apply   (status: mise bootstrap packages status --missing)
@@ -84,6 +87,10 @@ run = [
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
+[tasks.build]
+description = "build the playground for E2E tests"
+run = "bunx nuxi build playground"
+
 [tasks.prepack]
 description = "build the module for packaging"
 run = "bunx nuxt-module-build build"
@@ -122,6 +129,7 @@ run = "bunx vitest run --coverage"
 
 [tasks."test:e2e"]
 description = "run Playwright E2E tests"
+depends = ["build"]
 run = "bunx playwright test"
 
 [tasks."test:e2e:ui"]
