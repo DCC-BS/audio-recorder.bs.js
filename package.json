@@ -79,7 +79,7 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.11",
-        "@nuxt/devtools": "3.2.3",
+        "@nuxt/devtools": "3.4.2",
         "@nuxt/kit": "^4.5.0",
         "@nuxt/module-builder": "1.0.3",
         "@nuxt/schema": "4.5.2",
