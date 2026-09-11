@@ -75,7 +75,7 @@
         "baseline-browser-mapping": "^2.10.0",
         "caniuse-lite": "^1.0.30001776",
         "dexie": "4.3.0",
-        "rollup-plugin-import-css": "4.2.0"
+        "rollup-plugin-import-css": "4.2.1"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.11",
