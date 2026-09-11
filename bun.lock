@@ -10,7 +10,7 @@
         "baseline-browser-mapping": "^2.10.0",
         "caniuse-lite": "^1.0.30001776",
         "dexie": "4.3.0",
-        "rollup-plugin-import-css": "4.2.0",
+        "rollup-plugin-import-css": "4.2.1",
       },
       "devDependencies": {
         "@biomejs/biome": "2.5.11",
@@ -1643,7 +1643,7 @@
 
     "rollup-plugin-dts": ["rollup-plugin-dts@6.4.1", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "@jridgewell/sourcemap-codec": "^1.5.5", "convert-source-map": "^2.0.0", "magic-string": "^0.30.21" }, "optionalDependencies": { "@babel/code-frame": "^7.29.0" }, "peerDependencies": { "rollup": "^3.29.4 || ^4", "typescript": "^4.5 || ^5.0 || ^6.0" } }, "sha512-l//F3Zf7ID5GoOfLfD8kroBjQKEKpy1qfhtAdnpibFZMffPaylrg1CoDC2vGkPeTeyxUe4bVFCln2EFuL7IGGg=="],
 
-    "rollup-plugin-import-css": ["rollup-plugin-import-css@4.2.0", "", { "dependencies": { "@rollup/pluginutils": "^5.3.0" }, "peerDependencies": { "rollup": "^2.x.x || ^3.x.x || ^4.x.x" } }, "sha512-vHh4vNrJVM4BSxDz394MeiGEdrZVeoXgb9ywO8LnYkkIxY4f/U8Tk4K8NU7VMo1gKVgBhlqMp77grqzkLLRagA=="],
+    "rollup-plugin-import-css": ["rollup-plugin-import-css@4.2.1", "", { "dependencies": { "@rollup/pluginutils": "^5.3.0" }, "peerDependencies": { "rollup": "^2.x.x || ^3.x.x || ^4.x.x" } }, "sha512-X0TbADEYeCWx0ULS3d9I2vRHT9smhSDkCol8bTCDyI0pAJAZStK0EGo9c4i9hUbOoPeTgWE+hcUjm0V/GoseUQ=="],
 
     "rollup-plugin-visualizer": ["rollup-plugin-visualizer@7.0.1", "", { "dependencies": { "open": "^11.0.0", "picomatch": "^4.0.2", "source-map": "^0.7.4", "yargs": "^18.0.0" }, "peerDependencies": { "rolldown": "1.x || ^1.0.0-beta || ^1.0.0-rc", "rollup": "2.x || 3.x || 4.x" }, "optionalPeers": ["rolldown", "rollup"], "bin": { "rollup-plugin-visualizer": "dist/bin/cli.js" } }, "sha512-UJUT4+1Ho4OcWmPYU3sYXgUqI8B8Ayfe06MX7y0qCJ1K8aGoKtR/NDd/2nZqM7ADkrzny+I99Ul7GgyoiVNAgg=="],
 
