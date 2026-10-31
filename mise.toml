@@ -3,7 +3,7 @@
 # the 7-day cooldown. The weekly dependency routine deletes this comment once 1.4.4 is 7 days old.
 bun = "1.4.4"
 node = "24.22.1"
-usage = "7.0.1"
+usage = "7.0.2"
 
 [hooks]
 postinstall = { task = "install" }
