@@ -62,11 +62,59 @@ test.describe("Recording an external stream", () => {
         await expect(page.getByTestId("error")).toBeEmpty();
     });
 
+    test("ignores a second start while the first is starting", async ({
+        page,
+    }) => {
+        // a raw DOM click has no actionability wait: let Vue mount first
+        await page.waitForFunction(
+            () =>
+                (document.querySelector("#__nuxt") as { __vue_app__?: unknown })
+                    ?.__vue_app__,
+        );
+        // both clicks land before the first start has finished
+        await page.evaluate(() => {
+            const start = document.querySelector<HTMLButtonElement>(
+                '[data-testid="start"]',
+            );
+            start?.click();
+            start?.click();
+        });
+        await expect(page.getByTestId("recording")).toHaveText("true");
+        expect(
+            await page.evaluate(
+                () =>
+                    (window as unknown as { streamRequests: number })
+                        .streamRequests,
+            ),
+        ).toBe(1);
+
+        await page.waitForTimeout(1500);
+        await page.getByTestId("stop").click();
+        await expect
+            .poll(
+                async () =>
+                    Number(await page.getByTestId("size").textContent()),
+                { timeout: 15_000 },
+            )
+            .toBeGreaterThan(0);
+        await page.getByTestId("release").click();
+    });
+
     test("leaves the caller's stream running after stop", async ({ page }) => {
         await page.getByTestId("start").click();
         await expect(page.getByTestId("recording")).toHaveText("true");
+        // record something, or stop has nothing to hand back
+        await page.waitForTimeout(1500);
         await page.getByTestId("stop").click();
-        await expect(page.getByTestId("recording")).toHaveText("false");
+        // the recorder is torn down only after the final chunk is encoded,
+        // so wait for the finished recording before looking at the source
+        await expect
+            .poll(
+                async () =>
+                    Number(await page.getByTestId("size").textContent()),
+                { timeout: 15_000 },
+            )
+            .toBeGreaterThan(0);
 
         const state = await page.evaluate(
             () =>
@@ -77,6 +125,20 @@ test.describe("Recording an external stream", () => {
         expect(state).toBe("live");
         await page.getByTestId("release").click();
     });
+});
+
+test("reports a failing getStream as its own error", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (e) => pageErrors.push(e.message));
+    await page.goto("/externalStream?fail=1");
+
+    await page.getByTestId("start").click();
+    await expect(page.getByTestId("error")).toHaveText(
+        "Screen share cancelled",
+    );
+    await expect(page.getByTestId("recording")).toHaveText("false");
+    await expect(page.getByTestId("processing")).toHaveText("false");
+    expect(pageErrors).toEqual([]);
 });
 
 /**

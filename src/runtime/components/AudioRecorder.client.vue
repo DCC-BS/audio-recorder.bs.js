@@ -32,6 +32,7 @@ const showSuspendedWarning = ref(true);
 
 const {
     isRecording,
+    isStarting,
     isProcessing,
     startRecording,
     stopRecording,
@@ -64,12 +65,20 @@ const formattedRecordingTime = computed(() => {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 });
 
+/**
+ * Stops from the button; a failure is already shown through `error`.
+ */
+function stopFromButton(): void {
+    stopRecording().catch(() => {});
+}
+
 const dismissSuspendedWarning = () => {
     showSuspendedWarning.value = false;
 };
 
 defineExpose({
     isRecording,
+    isStarting,
     isProcessing,
     startRecording,
     stopRecording,
@@ -99,6 +108,8 @@ defineExpose({
                         color="primary"
                         variant="link"
                         icon="i-lucide-mic"
+                        :loading="isStarting || isProcessing"
+                        :disabled="isStarting || isProcessing"
                         @click="startRecording"
                         size="xl"
                     >
@@ -175,7 +186,7 @@ defineExpose({
                             color="secondary"
                             variant="link"
                             icon="i-lucide-square"
-                            @click="stopRecording"
+                            @click="stopFromButton"
                         >
                             {{ t("audio-recorder.audio.stopRecording") }}
                         </UButton>
