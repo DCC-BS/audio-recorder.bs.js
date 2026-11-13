@@ -19,6 +19,7 @@ import { useRecordingTime } from "./useRecodingTime";
  * @property onStore - Callback when an MP3 chunk is created during recording (fires every storeToDbInterval seconds)
  * @property logger - Custom logging function for debugging
  * @property disableDefaultStore - Disable the default IndexedDB storage. Useful when handling storage yourself via the onStore callback (default: false)
+ * @property getStream - Supplies the stream to record instead of the microphone, e.g. a mix of microphone and screen audio. Called on every start; the stream's tracks are not stopped by the recorder, the caller owns them
  */
 export type RecordingOptions = {
     onRecordingStarted?: (stream: MediaStream) => void;
@@ -28,9 +29,10 @@ export type RecordingOptions = {
     onStore?: (mp3Blob: Blob) => void | Promise<void>;
     logger?: (msg: string) => void;
     disableDefaultStore?: boolean;
+    getStream?: () => Promise<MediaStream>;
 };
 
-const optionsDefault: Required<RecordingOptions> = {
+const optionsDefault: Required<Omit<RecordingOptions, "getStream">> = {
     onRecordingStarted: () => {},
     onRecordingStopped: () => {},
     onError: () => {},
@@ -113,7 +115,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         resetRecording();
 
         try {
-            pcmRecorder = await startPcmRecorder();
+            pcmRecorder = await startPcmRecorder(await opt.getStream?.());
 
             pcmRecorder.setLogger(opt.logger);
             pcmRecorder.setOnContextSuspended(() => {
@@ -153,6 +155,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             const sampleRate = pcmRecorder.sampleRate;
 
             pcmRecorder.onPCMData(async (pcmData: Float32Array) => {
+                // samples still arrive until the recorder is torn down; past
+                // stop they would only queue appends that run after teardown
+                if (!isRecording.value) {
+                    return;
+                }
+
                 pcmArrays.push(pcmData);
                 totalSamples += pcmData.length;
 
@@ -206,9 +214,28 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
-    async function appendMp3() {
+    let appendQueue: Promise<void> = Promise.resolve();
+
+    /**
+     * Encodes the buffered samples and stores them as the next chunk. Calls
+     * run one after another, so chunks are stored in recording order and
+     * the one queued by stopRecording finishes only after every earlier one.
+     */
+    function appendMp3(): Promise<void> {
+        const next = appendQueue.then(appendMp3Now);
+        appendQueue = next.catch(() => {});
+        return next;
+    }
+
+    async function appendMp3Now() {
         if (!pcmRecorder) {
             throw new Error("pcmRecorder is not initialized");
+        }
+
+        // stopping right after a periodic store leaves nothing to encode,
+        // and FFmpeg fails on empty input
+        if (pcmArrays.length === 0) {
+            return;
         }
 
         const data = toPcmData(pcmArrays);

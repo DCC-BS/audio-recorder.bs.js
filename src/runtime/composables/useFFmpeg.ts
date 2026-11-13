@@ -33,13 +33,36 @@ function mimeTypeToFileExtension(mime: string) {
 export function useFFmpeg(logger?: (msg: string) => void) {
     const ffmpeg = new FFmpeg();
 
+    /*
+        Every operation works on fixed file names in one shared virtual FS,
+        so two running at once (a periodic chunk still encoding when the
+        recording stops) overwrite each other's files and fail. Queue them.
+    */
+    let queue: Promise<unknown> = Promise.resolve();
+
+    /**
+     * Runs an FFmpeg operation once all earlier ones have finished.
+     *
+     * @param operation - The operation to run.
+     * @returns The operation's result.
+     */
+    function exclusive<T>(operation: () => Promise<T>): Promise<T> {
+        const result = queue.then(operation, operation);
+        queue = result.catch(() => {});
+        return result;
+    }
+
     if (logger) {
         ffmpeg.on("log", ({ message: msg }: LogEvent) => {
             logger(msg);
         });
     }
 
-    async function convertAudioToMp3(
+    function convertAudioToMp3(inputBlob: Blob, fileName: string) {
+        return exclusive(() => convertAudioToMp3Now(inputBlob, fileName));
+    }
+
+    async function convertAudioToMp3Now(
         inputBlob: Blob,
         fileName: string,
     ): Promise<Blob> {
@@ -68,7 +91,17 @@ export function useFFmpeg(logger?: (msg: string) => void) {
     /**
      * Convert 16‑bit PCM Float32Array to MP3 Blob
      */
-    async function pcmToMp3(
+    function pcmToMp3(
+        pcmFloat32: Float32Array,
+        sampleRate: number,
+        numChannels: number,
+    ) {
+        return exclusive(() =>
+            pcmToMp3Now(pcmFloat32, sampleRate, numChannels),
+        );
+    }
+
+    async function pcmToMp3Now(
         pcmFloat32: Float32Array,
         sampleRate: number,
         numChannels: number,
@@ -122,7 +155,11 @@ export function useFFmpeg(logger?: (msg: string) => void) {
     /**
      * Concatenate multiple MP3 blobs into a single MP3 blob
      */
-    async function concatMp3(mp3Buffers: ArrayBuffer[]): Promise<Blob> {
+    function concatMp3(mp3Buffers: ArrayBuffer[]) {
+        return exclusive(() => concatMp3Now(mp3Buffers));
+    }
+
+    async function concatMp3Now(mp3Buffers: ArrayBuffer[]): Promise<Blob> {
         if (mp3Buffers.length === 0) {
             throw new Error("No MP3 blobs provided");
         }
