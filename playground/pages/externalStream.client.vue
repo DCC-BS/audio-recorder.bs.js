@@ -9,7 +9,12 @@ import { useAudioRecording } from "../../src/runtime/composables/useAudioRecordi
 */
 
 // ?fail=1 makes getStream reject, like a cancelled screen picker
-const failStart = new URLSearchParams(location.search).has("fail");
+const params = new URLSearchParams(location.search);
+const failStart = params.has("fail");
+// ?slow=1 holds getStream back, like a screen picker left open
+const slowStart = params.has("slow");
+// ?failStore=1 makes storing the first chunk fail
+let failNextStore = params.has("failStore");
 let toneContext: AudioContext | undefined;
 const sourceStream = ref<MediaStream>();
 const recordedSize = ref<number>();
@@ -21,6 +26,9 @@ const { isRecording, isProcessing, error, startRecording, stopRecording } =
             // read by the e2e tests: a second start must not ask again
             const w = window as unknown as { streamRequests?: number };
             w.streamRequests = (w.streamRequests ?? 0) + 1;
+            if (slowStart) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
             if (failStart) {
                 throw new DOMException(
                     "Screen share cancelled",
@@ -37,6 +45,12 @@ const { isRecording, isProcessing, error, startRecording, stopRecording } =
             (window as unknown as { sourceStream: MediaStream }).sourceStream =
                 destination.stream;
             return destination.stream;
+        },
+        onStore: () => {
+            if (failNextStore) {
+                failNextStore = false;
+                throw new Error("Store failed");
+            }
         },
         onRecordingStopped: (blob) => {
             recordedSize.value = blob.size;
@@ -59,6 +73,7 @@ function releaseSource(): void {
     <button data-testid="start" @click="startRecording">Start</button>
     <button data-testid="stop" @click="stopRecording">Stop</button>
     <button data-testid="release" @click="releaseSource">Release</button>
+    <NuxtLink data-testid="leave" to="/">Leave</NuxtLink>
     <p data-testid="recording">{{ isRecording }}</p>
     <p data-testid="processing">{{ isProcessing }}</p>
     <p data-testid="error">{{ error }}</p>

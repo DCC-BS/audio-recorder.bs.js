@@ -32,6 +32,9 @@ export type RecordingOptions = {
     getStream?: () => Promise<MediaStream>;
 };
 
+/** Aborts a start whose owner unmounted while it was still starting. */
+class StartCancelled extends Error {}
+
 const optionsDefault: Required<Omit<RecordingOptions, "getStream">> = {
     onRecordingStarted: () => {},
     onRecordingStopped: () => {},
@@ -141,10 +144,26 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
+    /**
+     * Ends a start whose owner unmounted while it was awaiting something
+     * (a permission prompt, the screen picker): nothing would ever stop the
+     * recorder it is about to create.
+     *
+     * @throws StartCancelled when the owner is gone.
+     */
+    function ensureNotDisposed(): void {
+        if (disposed) {
+            throw new StartCancelled();
+        }
+    }
+
     async function start() {
         // a supplied stream need not involve a microphone at all
         if (!opt.getStream) {
             const availabilityResult = await checkMicrophoneAvailability();
+            if (disposed) {
+                return;
+            }
             if (!availabilityResult.isAvailable) {
                 fail(availabilityResult.message || "Microphone not available");
                 return;
@@ -157,7 +176,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             const externalStream = opt.getStream
                 ? await opt.getStream()
                 : undefined;
+            ensureNotDisposed();
             pcmRecorder = await startPcmRecorder(externalStream);
+            ensureNotDisposed();
 
             pcmRecorder.setLogger(opt.logger);
             pcmRecorder.setOnContextSuspended(() => {
@@ -175,6 +196,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 pcmRecorder.sampleRate,
                 1,
             );
+            ensureNotDisposed();
 
             opt.onRecordingStarted(pcmRecorder.stream);
 
@@ -239,14 +261,18 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 }
             });
         } catch (e) {
-            console.error(e);
-            // getStream errors are the caller's (e.g. a cancelled screen
-            // picker) and must not be reported as microphone problems
-            fail(
-                opt.getStream
-                    ? (e as Error)?.message || "Recording could not be started"
-                    : handleMicrophoneError(e as Error),
-            );
+            // a cancelled start is only cleaned up: nobody is left to tell
+            if (!(e instanceof StartCancelled)) {
+                console.error(e);
+                // getStream errors are the caller's (e.g. a cancelled screen
+                // picker) and must not be reported as microphone problems
+                fail(
+                    opt.getStream
+                        ? (e as Error)?.message ||
+                              "Recording could not be started"
+                        : handleMicrophoneError(e as Error),
+                );
+            }
 
             try {
                 if (currentSession.value) {
@@ -267,6 +293,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     }
 
     let appendQueue: Promise<void> = Promise.resolve();
+    // the queue recovers from a failed chunk so later ones are still
+    // stored; the failure is kept for stopRecording to report
+    let chunkFailure: unknown;
 
     /**
      * Encodes the buffered samples and stores them as the next chunk.
@@ -295,7 +324,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         const next = appendQueue.then(() =>
             storeChunk(data, sampleRate, sessionId),
         );
-        appendQueue = next.catch(() => {});
+        appendQueue = next.catch((e) => {
+            chunkFailure ??= e;
+        });
         return next;
     }
 
@@ -316,6 +347,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             .storeAudioChunk(sessionId, await mp3Blob.arrayBuffer())
             .catch((e) => {
                 console.error("Error storing audio chunk:", e);
+                throw e;
             });
     }
 
@@ -331,6 +363,14 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             const stored = appendMp3();
             await abortRecording();
             await stored;
+
+            // a gap in the middle must not pass as a complete recording;
+            // what was stored stays recoverable as an abandoned recording
+            if (chunkFailure) {
+                throw new Error(
+                    "Part of the recording could not be stored; the rest is kept among the abandoned recordings",
+                );
+            }
 
             if (!currentSession.value) {
                 throw new Error("No active session for recording");
@@ -353,17 +393,23 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             }
             const mp3Blob = await concatMp3(buffers);
 
-            // nobody is left to receive it: keep it recoverable instead
+            // nobody is left to receive it: keep it recoverable instead.
+            // Nothing is awaited from here to the hand-over, so the owner
+            // cannot go away in between.
             if (disposed) {
                 return;
             }
 
             audioBlob.value = mp3Blob;
             audioUrl.value = URL.createObjectURL(mp3Blob);
-
-            // Update state with processed audio
-            await audioStorage.deleteSession(currentSession.value);
             opt.onRecordingStopped(audioBlob.value, audioUrl.value);
+
+            // delivered: the stored copy is no longer needed
+            await audioStorage
+                .deleteSession(currentSession.value)
+                .catch((e) => {
+                    console.error("Error deleting the delivered session:", e);
+                });
         } catch (e) {
             fail((e as Error)?.message || "Recording could not be finished");
             throw e;
@@ -402,6 +448,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         error.value = "";
         pcmArrays = [];
         totalSamples = 0;
+        chunkFailure = undefined;
         pcmRecorder = undefined;
     }
 
