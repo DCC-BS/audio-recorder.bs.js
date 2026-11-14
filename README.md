@@ -151,6 +151,7 @@ function onRecordingStopped(audioBlob, audioUrl) {
 | `onStore` | `(mp3Blob: Blob) => void \| Promise<void>` | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds) |
 | `logger` | `(msg: string) => void` | `() => {}` | Custom logging function for debugging |
 | `disableDefaultStore` | `boolean` | `false` | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback |
+| `getStream` | `() => Promise<MediaStream>` | microphone | Supplies the stream to record instead of the microphone, e.g. microphone mixed with screen audio for meetings. Called on every start. The recorder never stops this stream's tracks; the caller does |
 
 #### Example
 

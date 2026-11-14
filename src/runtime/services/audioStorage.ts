@@ -3,7 +3,10 @@ import { type AudioSession, db } from "./db";
 export class AudioStorageService {
     // Generate unique ID
     private generateId(): string {
-        return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        // getRandomValues, unlike randomUUID, also exists outside secure
+        // contexts (plain-http intranet hosts)
+        const random = crypto.getRandomValues(new Uint32Array(2));
+        return `${Date.now()}-${Array.from(random, (n) => n.toString(36)).join("")}`;
     }
 
     public async createSession(

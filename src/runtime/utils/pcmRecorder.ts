@@ -15,6 +15,8 @@ export class PCMRecorder {
         public readonly pcmWorklet: AudioWorkletNode,
         public readonly source: MediaStreamAudioSourceNode,
         public readonly sampleRate: number = audioContext.sampleRate,
+        /** Whether stop() ends the stream's tracks; false for a caller's stream. */
+        private readonly ownsStream: boolean = true,
     ) {
         this._logger = () => {};
         this.keepAwake = new KeepAwake(this._logger);
@@ -95,8 +97,11 @@ export class PCMRecorder {
             this._boundHandleStateChange,
         );
 
-        for (const track of this.stream.getTracks()) {
-            track.stop();
+        // a stream handed in by the caller is theirs to end
+        if (this.ownsStream) {
+            for (const track of this.stream.getTracks()) {
+                track.stop();
+            }
         }
 
         this.pcmWorklet.port.postMessage({ type: "stop" });
@@ -110,10 +115,18 @@ export class PCMRecorder {
     }
 }
 
-export async function startPcmRecorder() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-    });
+/**
+ * Starts capturing PCM samples.
+ *
+ * @param externalStream - Stream to record instead of the microphone. Its
+ * tracks are left running when the recorder stops.
+ */
+export async function startPcmRecorder(externalStream?: MediaStream) {
+    const stream =
+        externalStream ??
+        (await navigator.mediaDevices.getUserMedia({
+            audio: true,
+        }));
 
     const audioContext = new AudioContext();
 
@@ -139,7 +152,14 @@ export async function startPcmRecorder() {
         navigator.mediaSession.playbackState = "none";
     }
 
-    const recorder = new PCMRecorder(stream, audioContext, pcmWorklet, source);
+    const recorder = new PCMRecorder(
+        stream,
+        audioContext,
+        pcmWorklet,
+        source,
+        audioContext.sampleRate,
+        externalStream === undefined,
+    );
     await recorder.startKeepAwake();
 
     return recorder;
