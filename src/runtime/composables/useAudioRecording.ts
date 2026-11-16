@@ -212,6 +212,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             ensureNotDisposed();
 
             opt.onRecordingStarted(pcmRecorder.stream);
+            // the callback may already have asked to stop
+            ensureNotDisposed();
 
             isRecording.value = true;
 

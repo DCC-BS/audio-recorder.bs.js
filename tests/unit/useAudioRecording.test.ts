@@ -23,7 +23,13 @@ const startPcmRecorder = vi.hoisted(() => vi.fn());
 
 vi.mock("vue-i18n", () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock("../../src/runtime/services/audioStorage", () => ({
-    AudioStorageService: vi.fn(() => storage),
+    // a class: the composable calls `new AudioStorageService()`
+    AudioStorageService: class {
+        constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: hands out the shared mock
+            return storage;
+        }
+    },
 }));
 vi.mock("../../src/runtime/utils/pcmRecorder", () => ({ startPcmRecorder }));
 vi.mock("../../src/runtime/utils/microphone", () => ({
@@ -122,5 +128,24 @@ describe("useAudioRecording.stopRecording", () => {
         expect(recorder.stop).toHaveBeenCalledOnce();
         expect(isProcessing.value).toBe(false);
         expect(onError).toHaveBeenCalledWith("db gone");
+    });
+
+    it("stops a recording when onRecordingStarted asks to stop", async () => {
+        const onRecordingStopped = vi.fn();
+        let stopFromCallback: () => Promise<void> = async () => {};
+        const recording = useAudioRecording({
+            onRecordingStarted: () => {
+                stopFromCallback();
+            },
+            onRecordingStopped,
+        });
+        stopFromCallback = recording.stopRecording;
+
+        await recording.startRecording();
+
+        expect(recording.isRecording.value).toBe(false);
+        expect(recording.isBusy.value).toBe(false);
+        expect(recorder.stop).toHaveBeenCalledOnce();
+        expect(onRecordingStopped).not.toHaveBeenCalled();
     });
 });
