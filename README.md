@@ -47,16 +47,19 @@ Audio Recorder is a powerful Nuxt.js module that provides advanced audio recordi
 Install the module to your Nuxt application:
 
 #### Using Bun
+
 ```bash
 bun add @dcc-bs/audio-recorder.bs.js
 ```
 
 #### Using NPM
+
 ```bash
 npm i @dcc-bs/audio-recorder.bs.js
 ```
 
 #### Using Yarn
+
 ```bash
 yarn add @dcc-bs/audio-recorder.bs.js
 ```
@@ -67,10 +70,8 @@ Add it to your `nuxt.config.ts`:
 
 ```ts
 export default defineNuxtConfig({
-    modules: [
-        '@dcc-bs/audio-recorder.bs.js',
-    ],
-})
+    modules: ["@dcc-bs/audio-recorder.bs.js"],
+});
 ```
 
 under the vite config in `nuxt.config.ts` configure dexie:
@@ -86,7 +87,7 @@ vite: {
 
 add the following line to your main CSS file:
 ```css
-@import '@dcc-bs/audio-recorder.bs.js';
+@import "@dcc-bs/audio-recorder.bs.js";
 ```
 
 ## Client-Only Rendering
@@ -142,16 +143,16 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 #### RecordingOptions
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `onRecordingStarted` | `(stream: MediaStream) => void` | `() => {}` | Callback when recording starts, providing the MediaStream |
-| `onRecordingStopped` | `(audioBlob: Blob, audioUrl: string) => void` | `() => {}` | Callback when recording stops with the audio data |
-| `onError` | `(error: string) => void` | `() => {}` | Callback when an error occurs during recording |
-| `storeToDbInterval` | `number` | `30` | Interval in seconds to store audio chunks to IndexedDB |
-| `onStore` | `(mp3Blob: Blob) => void \| Promise<void>` | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds) |
-| `logger` | `(msg: string) => void` | `() => {}` | Custom logging function for debugging |
-| `disableDefaultStore` | `boolean` | `false` | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback |
-| `getStream` | `() => Promise<MediaStream>` | microphone | Supplies the stream to record instead of the microphone, e.g. microphone mixed with screen audio for meetings. Called on every start. The recorder never stops this stream's tracks; the caller does |
+| Property              | Type                                          | Default    | Description                                                                                                                                                                                          |
+| --------------------- | --------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onRecordingStarted`  | `(stream: MediaStream) => void`               | `() => {}` | Callback when recording starts, providing the MediaStream                                                                                                                                            |
+| `onRecordingStopped`  | `(audioBlob: Blob, audioUrl: string) => void` | `() => {}` | Callback when recording stops with the audio data                                                                                                                                                    |
+| `onError`             | `(error: string) => void`                     | `() => {}` | Callback when an error occurs during recording                                                                                                                                                       |
+| `storeToDbInterval`   | `number`                                      | `30`       | Interval in seconds to store audio chunks to IndexedDB                                                                                                                                               |
+| `onStore`             | `(mp3Blob: Blob) => void \| Promise<void>`    | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds)                                                                                                     |
+| `logger`              | `(msg: string) => void`                       | `() => {}` | Custom logging function for debugging                                                                                                                                                                |
+| `disableDefaultStore` | `boolean`                                     | `false`    | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback                                                                                    |
+| `getStream`           | `() => Promise<MediaStream>`                  | microphone | Supplies the stream to record instead of the microphone, e.g. microphone mixed with screen audio for meetings. Called on every start. The recorder never stops this stream's tracks; the caller does |
 
 #### Example
 
@@ -231,33 +232,36 @@ The main recording component with start/stop controls and audio visualization.
 
 #### Props
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `showResult` | `boolean` | `true` | Whether to show the playback section after recording is complete |
-| `autoStart` | `boolean` | `false` | Automatically start recording when the component is mounted |
-| `storeToDbInterval` | `number` | `5` | Interval in seconds to store audio chunks to IndexedDB (e.g., 30 for 30 seconds) |
-| `logger` | `(msg: string) => void` | `undefined` | Optional custom logging function for debugging |
+| Property            | Type                    | Default     | Description                                                                      |
+| ------------------- | ----------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `showResult`        | `boolean`               | `true`      | Whether to show the playback section after recording is complete                 |
+| `autoStart`         | `boolean`               | `false`     | Automatically start recording when the component is mounted                      |
+| `storeToDbInterval` | `number`                | `5`         | Interval in seconds to store audio chunks to IndexedDB (e.g., 30 for 30 seconds) |
+| `logger`            | `(msg: string) => void` | `undefined` | Optional custom logging function for debugging                                   |
 
 #### Events
 
-| Event | Parameters | Description |
-|-------|------------|-------------|
-| `recording-started` | `stream: MediaStream` | Emitted when recording starts successfully |
+| Event               | Parameters                          | Description                                      |
+| ------------------- | ----------------------------------- | ------------------------------------------------ |
+| `recording-started` | `stream: MediaStream`               | Emitted when recording starts successfully       |
 | `recording-stopped` | `audioBlob: Blob, audioUrl: string` | Emitted when recording stops with the audio data |
 
 #### Exposed Methods & Properties
 
 The component exposes the following methods and reactive properties via template refs:
 
-| Property/Method | Type | Description |
-|-----------------|------|-------------|
-| `isRecording` | `Ref<boolean>` | Reactive boolean indicating if recording is in progress |
-| `startRecording` | `() => Promise<void>` | Method to start audio recording |
-| `stopRecording` | `() => Promise<void>` | Method to stop audio recording |
-| `recordingTime` | `Ref<number>` | Recording time in seconds |
-| `formattedRecordingTime` | `ComputedRef<string>` | Formatted recording time as "MM:SS" |
-| `error` | `Ref<string \| null>` | Current error message, if any |
-| `audioUrl` | `Ref<string \| null>` | URL of the recorded audio blob |
+| Property/Method          | Type                   | Description                                                                                                                    |
+| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `isRecording`            | `Ref<boolean>`         | Reactive boolean indicating if recording is in progress                                                                        |
+| `isStarting`             | `Ref<boolean>`         | True while the recording starts (devices, permission prompt)                                                                   |
+| `isProcessing`           | `Ref<boolean>`         | True while a stopped recording is being finished                                                                               |
+| `isBusy`                 | `ComputedRef<boolean>` | Starting, recording or finishing: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open  |
+| `startRecording`         | `() => Promise<void>`  | Method to start audio recording                                                                                                |
+| `stopRecording`          | `() => Promise<void>`  | Stops the recording. Cancels a start still in progress, does nothing without a recording, and joins a stop already in progress |
+| `recordingTime`          | `Ref<number>`          | Recording time in seconds                                                                                                      |
+| `formattedRecordingTime` | `ComputedRef<string>`  | Formatted recording time as "MM:SS"                                                                                            |
+| `error`                  | `Ref<string \| null>`  | Current error message, if any                                                                                                  |
+| `audioUrl`               | `Ref<string \| null>`  | URL of the recorded audio blob                                                                                                 |
 
 #### Usage with Template Ref
 
@@ -297,10 +301,10 @@ Real-time audio waveform visualization component that displays frequency data as
 
 #### Props
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `stream` | `MediaStream \| undefined` | Yes | The audio stream to visualize |
-| `isRecording` | `boolean` | Yes | Whether recording is currently active (controls visualization updates) |
+| Property      | Type                       | Required | Description                                                            |
+| ------------- | -------------------------- | -------- | ---------------------------------------------------------------------- |
+| `stream`      | `MediaStream \| undefined` | Yes      | The audio stream to visualize                                          |
+| `isRecording` | `boolean`                  | Yes      | Whether recording is currently active (controls visualization updates) |
 
 #### Events
 
@@ -352,34 +356,34 @@ Browse and manage audio sessions component with customizable actions.
 
 #### Props
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `showDownloadButton` | `boolean` | `true` | Whether to show the default download button |
-| `showDeleteButton` | `boolean` | `true` | Whether to show the default delete button |
-| `customActions` | `CustomAction[]` | `[]` | Array of custom action buttons to display before the download button |
+| Property             | Type             | Default | Description                                                          |
+| -------------------- | ---------------- | ------- | -------------------------------------------------------------------- |
+| `showDownloadButton` | `boolean`        | `true`  | Whether to show the default download button                          |
+| `showDeleteButton`   | `boolean`        | `true`  | Whether to show the default delete button                            |
+| `customActions`      | `CustomAction[]` | `[]`    | Array of custom action buttons to display before the download button |
 
 #### CustomAction Interface
 
 ```typescript
 interface CustomAction {
-  label: string           // Button text
-  icon?: string          // Icon name (e.g., 'i-lucide-upload')
-  color?: string         // Button color (default: 'primary')
-  variant?: string       // Button variant (default: 'soft')
-  loading?: boolean      // External loading state
-  disabled?: boolean     // External disabled state
-  handler: (
-    sessionId: string,
-    mp3Blob: Blob,
-    deleteSession: () => Promise<void>
-  ) => void | Promise<void>
+    label: string; // Button text
+    icon?: string; // Icon name (e.g., 'i-lucide-upload')
+    color?: string; // Button color (default: 'primary')
+    variant?: string; // Button variant (default: 'soft')
+    loading?: boolean; // External loading state
+    disabled?: boolean; // External disabled state
+    handler: (
+        sessionId: string,
+        mp3Blob: Blob,
+        deleteSession: () => Promise<void>,
+    ) => void | Promise<void>;
 }
 ```
 
 #### Slots
 
-| Slot | Props | Description |
-|------|-------|-------------|
+| Slot      | Props                                    | Description                                        |
+| --------- | ---------------------------------------- | -------------------------------------------------- |
 | `actions` | `session`, `getMp3Blob`, `deleteSession` | Custom action buttons slot for maximum flexibility |
 
 #### Usage Examples

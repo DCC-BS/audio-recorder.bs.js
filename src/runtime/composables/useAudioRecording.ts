@@ -1,4 +1,4 @@
-import { onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { AudioStorageService } from "../services/audioStorage";
 import {
@@ -79,6 +79,13 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     /** Between the start request and the first sample: devices, permission prompt, session. */
     const isStarting = ref(false);
     const isProcessing = ref(false);
+    /**
+     * Starting, recording or finishing: audio would be lost if the page went
+     * away now. Useful to guard navigation or to keep a dialog open.
+     */
+    const isBusy = computed(
+        () => isStarting.value || isRecording.value || isProcessing.value,
+    );
     const wasSuspended = ref(false);
 
     const error = ref<string>();
@@ -102,6 +109,10 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     // once the owner is gone a finished recording can no longer be handed
     // over, so it must stay in storage as an abandoned recording
     let disposed = false;
+    // stopRecording was called while the recording was still starting
+    let startCancelled = false;
+    // the stop in progress; a second stop joins it instead of finishing twice
+    let pendingStop: Promise<void> | undefined;
 
     onUnmounted(() => {
         disposed = true;
@@ -137,6 +148,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
 
         isStarting.value = true;
+        startCancelled = false;
         try {
             await start();
         } finally {
@@ -145,14 +157,15 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     }
 
     /**
-     * Ends a start whose owner unmounted while it was awaiting something
-     * (a permission prompt, the screen picker): nothing would ever stop the
-     * recorder it is about to create.
+     * Ends a start that was cancelled while it was awaiting something (a
+     * permission prompt, the screen picker): its owner unmounted, or
+     * stopRecording was called. Nothing would ever stop the recorder it is
+     * about to create.
      *
-     * @throws StartCancelled when the owner is gone.
+     * @throws StartCancelled when the start was cancelled.
      */
     function ensureNotDisposed(): void {
-        if (disposed) {
+        if (disposed || startCancelled) {
             throw new StartCancelled();
         }
     }
@@ -161,7 +174,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         // a supplied stream need not involve a microphone at all
         if (!opt.getStream) {
             const availabilityResult = await checkMicrophoneAvailability();
-            if (disposed) {
+            if (disposed || startCancelled) {
                 return;
             }
             if (!availabilityResult.isAvailable) {
@@ -351,7 +364,38 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             });
     }
 
-    async function stopRecording(): Promise<void> {
+    /**
+     * Stops the recording and hands the audio to `onRecordingStopped`.
+     *
+     * - While the recording is still starting, the start is cancelled: no
+     *   recording is made and nothing is reported.
+     * - Without a recording (never started, or already finished) it does
+     *   nothing, so callers may stop unconditionally (e.g. when a dialog
+     *   closes).
+     * - A second call while the first is still finishing joins it.
+     *
+     * @throws Error when the recording could not be finished; it is also
+     *   reported through `error` and `onError`.
+     */
+    function stopRecording(): Promise<void> {
+        if (pendingStop) {
+            return pendingStop;
+        }
+        if (isStarting.value) {
+            startCancelled = true;
+            return Promise.resolve();
+        }
+        if (!isRecording.value && !pcmRecorder) {
+            return Promise.resolve();
+        }
+
+        pendingStop = finishRecording().finally(() => {
+            pendingStop = undefined;
+        });
+        return pendingStop;
+    }
+
+    async function finishRecording(): Promise<void> {
         isRecording.value = false;
         isProcessing.value = true;
 
@@ -456,6 +500,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isRecording,
         isStarting,
         isProcessing,
+        isBusy,
         recordingTime,
         startRecording,
         stopRecording,
