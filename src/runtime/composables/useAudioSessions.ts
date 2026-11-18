@@ -38,7 +38,10 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { concatMp3 } = useFFmpeg(opt.logger);
 
+    /** The stored recordings were read at least once. */
     const isReady = ref(false);
+    /** The last attempt to read them failed; `refresh()` retries. */
+    const loadFailed = ref(false);
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
     const pausedRecording = computed(() =>
@@ -53,24 +56,36 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     );
 
     onMounted(async () => {
-        await audioStorage.clearSessionsOlderThan(
-            opt.deleteOldSessionsDaysInterval,
-        ); // days
-
-        await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
-        await refresh();
-        isReady.value = true;
+        // a failed cleanup only leaves old recordings around a while longer
+        try {
+            await audioStorage.clearSessionsOlderThan(
+                opt.deleteOldSessionsDaysInterval,
+            );
+            await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
+        } catch (e) {
+            opt.logger(`Cleaning up old recordings failed: ${e}`);
+        }
+        await refresh().catch(() => {});
     });
 
     // a delete invalidates refreshes still in flight: they may have read
     // the deleted session
     let generation = 0;
 
+    /** Reads the stored recordings again; sets `isReady` or `loadFailed`. */
     async function refresh(): Promise<void> {
         const current = ++generation;
-        const sessions = await audioStorage.getResumableSessions();
+        let sessions: AudioSession[];
+        try {
+            sessions = await audioStorage.getResumableSessions();
+        } catch (e) {
+            loadFailed.value = true;
+            throw e;
+        }
+        loadFailed.value = false;
         if (current === generation) {
             abandonedRecording.value = sessions;
+            isReady.value = true;
         }
     }
 
@@ -123,6 +138,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
 
     return {
         isReady,
+        loadFailed,
         abandonedRecording,
         pausedRecording,
         refresh,
