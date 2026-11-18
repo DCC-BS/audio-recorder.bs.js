@@ -20,7 +20,10 @@ test.describe("Pause and resume", () => {
 
         await page.getByRole("button", { name: audio.pauseRecording }).click();
         await expect(page.getByText(audio.recordingPaused)).toBeVisible();
-        await expect(page.getByText(audio.pausedSafely)).toBeVisible();
+        // the first pause encodes the first chunk, which loads ffmpeg.wasm
+        await expect(page.getByText(audio.pausedSafely)).toBeVisible({
+            timeout: 30_000,
+        });
 
         // the clock stands still while paused
         const atPause = await shownSeconds(page);
@@ -50,7 +53,10 @@ test.describe("Pause and resume", () => {
         await expect.poll(() => shownSeconds(page)).toBeGreaterThanOrEqual(2);
         await page.getByRole("button", { name: audio.pauseRecording }).click();
         // only once stored is the pause safe from a reload
-        await expect(page.getByText(audio.pausedSafely)).toBeVisible();
+        // the first pause encodes the first chunk, which loads ffmpeg.wasm
+        await expect(page.getByText(audio.pausedSafely)).toBeVisible({
+            timeout: 30_000,
+        });
         const atPause = await shownSeconds(page);
 
         await page.reload();
@@ -87,7 +93,10 @@ test.describe("Pause and resume", () => {
         await page.goto("/");
         await page.getByRole("button", { name: audio.startRecording }).click();
         // a chunk must be stored before the cut for anything to survive
-        await expect.poll(() => countStoredChunks(page)).toBeGreaterThan(0);
+        // the first chunk loads ffmpeg.wasm, as in external-stream.spec.ts
+        await expect
+            .poll(() => countStoredChunks(page), { timeout: 15_000 })
+            .toBeGreaterThan(0);
 
         // a reload mid-recording stands in for a crash or a closed tab
         await page.reload();
