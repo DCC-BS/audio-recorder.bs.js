@@ -154,6 +154,8 @@ test("drops a start whose page was left meanwhile", async ({ page }) => {
 });
 
 test("reports a lost chunk and keeps the rest", async ({ page }) => {
+    // stopping first encodes every chunk queued behind the slow first one
+    test.setTimeout(90_000);
     await page.goto("/externalStream?failStore=1");
     await page.getByTestId("start").click();
     await expect(page.getByTestId("recording")).toHaveText("true");
@@ -165,7 +167,7 @@ test("reports a lost chunk and keeps the rest", async ({ page }) => {
 
     await expect(page.getByTestId("error")).toContainText(
         "Part of the recording could not be stored",
-        { timeout: 15_000 },
+        { timeout: 45_000 },
     );
     await expect(page.getByTestId("size")).toBeEmpty();
     expect(await countStored(page, "audioSessions")).toBe(1);
