@@ -1,6 +1,6 @@
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
-import type { AudioSession } from "../services/db";
+import { type AudioSession, newestPaused } from "../services/db";
 import { useFFmpeg } from "./useFFmpeg";
 
 /**
@@ -22,56 +22,124 @@ const optionsDefault: Required<AudioSessionOptions> = {
     logger: (_: string) => {},
 };
 
+/** Stored recordings no tab is recording right now, newest first. */
 export async function getAbandonedRecording(): Promise<AudioSession[]> {
     const audioStorage = new AudioStorageService();
-    return audioStorage.getAllSessions();
+    return audioStorage.getResumableSessions();
+}
+
+/** The paused recording, if any. */
+export async function getPausedRecording(): Promise<AudioSession | undefined> {
+    const audioStorage = new AudioStorageService();
+    return audioStorage.getPausedSession();
 }
 
 export function useAudioSessions(options: AudioSessionOptions = {}) {
     const opt = { ...optionsDefault, ...options };
     const { concatMp3 } = useFFmpeg(opt.logger);
 
+    /** The stored recordings were read at least once. */
     const isReady = ref(false);
+    /** The last attempt to read them failed; `refresh()` retries. */
+    const loadFailed = ref(false);
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
+    const pausedRecording = computed(() =>
+        newestPaused(abandonedRecording.value ?? []),
+    );
 
     onMounted(async () => {
-        await audioStorage.clearSessionsOlderThan(
-            opt.deleteOldSessionsDaysInterval,
-        ); // days
-
-        await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
-        abandonedRecording.value = await audioStorage.getAllSessions();
-        isReady.value = true;
+        // a failed cleanup only leaves old recordings around a while longer
+        try {
+            await audioStorage.clearSessionsOlderThan(
+                opt.deleteOldSessionsDaysInterval,
+            );
+            await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
+        } catch (e) {
+            opt.logger(`Cleaning up old recordings failed: ${e}`);
+        }
+        await refresh().catch(() => {});
     });
 
-    async function getMp3Blob(sessionId: string): Promise<Blob> {
-        const session = await audioStorage.getSession(sessionId);
+    // a delete invalidates refreshes still in flight: they may have read
+    // the deleted session
+    let generation = 0;
 
-        if (!session) {
-            throw new Error(`Session with ID ${sessionId} not found`);
+    /** Reads the stored recordings again; sets `isReady` or `loadFailed`. */
+    async function refresh(): Promise<void> {
+        const current = ++generation;
+        let sessions: AudioSession[];
+        try {
+            sessions = await audioStorage.getResumableSessions();
+        } catch (e) {
+            if (current === generation) {
+                loadFailed.value = true;
+            }
+            throw e;
         }
-
-        const mp3Chunks = await audioStorage.getSessionChunks(sessionId);
-
-        const mp3Blob = await concatMp3(mp3Chunks);
-        return mp3Blob;
+        // an older read must not clear the failure of a newer one
+        if (current === generation) {
+            loadFailed.value = false;
+            abandonedRecording.value = sessions;
+            isReady.value = true;
+        }
     }
 
-    async function deleteAbandonedRecording(sessionId: string): Promise<void> {
-        await audioStorage.deleteSession(sessionId);
+    /**
+     * Joins a stored session into one MP3.
+     *
+     * @returns The MP3 and the number of chunks in it, to pass to
+     *   `markAsStopped` or `deleteAbandonedRecording` afterwards.
+     */
+    function exportSession(
+        sessionId: string,
+    ): Promise<{ mp3Blob: Blob; chunkCount: number }> {
+        return audioStorage.exportSession(sessionId, concatMp3);
+    }
+
+    async function getMp3Blob(sessionId: string): Promise<Blob> {
+        return (await exportSession(sessionId)).mp3Blob;
+    }
+
+    /** Keeps a handed-on recording as a backup; see AudioStorageService.markAsStopped. */
+    async function markAsStopped(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
+        await audioStorage.markAsStopped(sessionId, expectedChunkCount);
+        // the stop is done; a stale list is no reason to report it failed
+        await refresh().catch((e) => {
+            opt.logger(`Refreshing the stored recordings failed: ${e}`);
+        });
+    }
+
+    /** See AudioStorageService.deleteStoredSession. */
+    async function deleteAbandonedRecording(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
+        await audioStorage.deleteStoredSession(sessionId, expectedChunkCount);
+        generation++;
 
         if (abandonedRecording.value) {
             abandonedRecording.value = abandonedRecording.value.filter(
                 (s) => s.id !== sessionId,
             );
+        } else {
+            // the first read was invalidated above and has no list to fix
+            refresh().catch(() => {});
         }
     }
 
     return {
         isReady,
+        loadFailed,
         abandonedRecording,
+        pausedRecording,
+        refresh,
+        markAsStopped,
         getMp3Blob,
+        exportSession,
         deleteAbandonedRecording,
     };
 }

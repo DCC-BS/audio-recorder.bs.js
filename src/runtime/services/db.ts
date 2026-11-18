@@ -7,6 +7,12 @@ export interface AudioChunk {
     buffer: ArrayBuffer;
 }
 
+/**
+ * `recording` (interrupted when no page owns it, see sessionLock), `paused`,
+ * or `stopped` (ended, kept only as a backup).
+ */
+export type AudioSessionStatus = "recording" | "paused" | "stopped";
+
 export interface AudioSession {
     id: string;
     name?: string;
@@ -16,6 +22,17 @@ export interface AudioSession {
     chunkIds: string[];
     sampleRate: number;
     numChannels: number;
+    /** Missing on sessions stored before version 3: treat as `recording`. */
+    status?: AudioSessionStatus;
+    duration?: number;
+    pausedAt?: string;
+    /** Free-form tag, e.g. "microphone" or "meeting". */
+    source?: string;
+}
+
+/** Paused and interrupted sessions may be continued, stopped ones not. */
+export function isResumable(session: Pick<AudioSession, "status">): boolean {
+    return session.status !== "stopped";
 }
 
 const db = new Dexie("AudioRecorderDB") as Dexie & {
@@ -45,6 +62,38 @@ db.version(2)
                 session.chunkCount = 0;
                 session.numChannels = 1;
                 session.sampleRate = 44100;
+            });
+    });
+
+// chunks are MP3 at 64 kbit/s, i.e. 8000 bytes per second
+/** The most recently paused of `sessions`, if any. */
+export function newestPaused(
+    sessions: readonly AudioSession[],
+): AudioSession | undefined {
+    return sessions
+        .filter((s) => s.status === "paused")
+        .sort((a, b) =>
+            (b.pausedAt ?? b.createdAt).localeCompare(
+                a.pausedAt ?? a.createdAt,
+            ),
+        )[0];
+}
+
+export const MP3_BYTES_PER_SECOND = 8000;
+
+db.version(3)
+    .stores({
+        audioChunks: "id, sessionId, createdAt",
+        audioSessions: "id, createdAt, chunkCount, totalSize, status",
+    })
+    .upgrade((tx) => {
+        return tx
+            .table("audioSessions")
+            .toCollection()
+            .modify((session: AudioSession) => {
+                // everything stored so far was cut off mid-recording
+                session.status = "recording";
+                session.duration = session.totalSize / MP3_BYTES_PER_SECOND;
             });
     });
 

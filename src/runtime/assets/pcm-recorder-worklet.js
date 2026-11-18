@@ -1,6 +1,23 @@
 // pcm-recorder-worklet.js
 class PCMRecorderProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.paused = false;
+        this.port.onmessage = (event) => {
+            if (event.data?.type === "pause") {
+                this.paused = true;
+                // ordered after every block posted so far
+                this.port.postMessage({ type: "paused" });
+            } else if (event.data?.type === "resume") {
+                this.paused = false;
+            }
+        };
+    }
+
     process(inputs, _, __) {
+        if (this.paused) {
+            return true;
+        }
         const input = inputs[0];
         if (!input || input.length === 0) {
             return true;

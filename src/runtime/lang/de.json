@@ -15,14 +15,27 @@
                     "checkPermissions": "Überprüfen Sie die Browser-Berechtigungen für den Mikrofonzugriff.",
                     "differentBrowser": "Versuchen Sie einen anderen Browser.",
                     "restart": "Starten Sie Ihren Browser oder Ihr Gerät neu."
-                }
+                },
+                "sessionInUse": "Diese Aufnahme ist bereits in einem anderen Tab oder Fenster geöffnet.",
+                "sessionChanged": "Diese Aufnahme wurde inzwischen fortgesetzt und deshalb behalten.",
+                "pauseNotSaved": "Pausiert, aber ein Teil der Aufnahme konnte nicht gespeichert werden. Schliessen Sie die App noch nicht: Beenden Sie die Aufnahme, um das Gespeicherte zu behalten, oder prüfen Sie die abgebrochenen Aufnahmen.",
+                "sessionNotResumable": "Diese Aufnahme wurde bereits beendet und ist nur noch als Sicherung vorhanden; sie kann nicht fortgesetzt werden.",
+                "resumeNeedsStore": "Gespeicherte Aufnahmen können nur fortgesetzt werden, wenn der Standardspeicher aktiviert ist.",
+                "inputUnavailable": "Der Audioeingang ist gerade nicht verfügbar (z. B. während eines Anrufs). Die Aufnahme bleibt pausiert; versuchen Sie es später erneut."
             },
             "warnings": {
                 "suspendedRecording": "Die Aufnahme wurde im Hintergrund unterbrochen. Möglicherweise fehlt ein Teil der Audioaufnahme.",
                 "dismiss": "Schliessen"
             },
             "recordingTime": "Aufnahmezeit",
-            "newRecording": "Neue Aufnahme {date}"
+            "newRecording": "Neue Aufnahme {date}",
+            "continueRecording": "Aufnahme fortsetzen",
+            "pauseRecording": "Pausieren",
+            "resumeRecording": "Fortsetzen",
+            "recordingPaused": "Aufnahme pausiert",
+            "pausedSafely": "Alles bisher Aufgenommene ist gespeichert. Sie können die App schliessen und später weitermachen.",
+            "pausedByInterruption": "Pausiert, weil eine andere App (z. B. ein Anruf) das Mikrofon benötigt hat. Alles bisher Aufgenommene ist gespeichert.",
+            "savingPause": "Bisher Aufgenommenes wird gespeichert…"
         },
         "sessionExplorer": {
             "title": "Audio-Sitzungen",
@@ -36,7 +49,12 @@
             "delete": "Löschen",
             "deleting": "Wird gelöscht...",
             "count": "eine Sitzung insgesamt | {count} Sitzungen insgesamt",
-            "sessionId": "Sitzungs-ID"
+            "sessionId": "Sitzungs-ID",
+            "status": {
+                "recording": "Unterbrochen",
+                "paused": "Pausiert",
+                "stopped": "Beendet"
+            }
         }
     }
 }

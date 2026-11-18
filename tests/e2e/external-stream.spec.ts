@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { countStored, countStoredChunks } from "./storage";
 
 /*
     `getStream` lets an app record something other than the microphone (a
@@ -33,6 +34,8 @@ test.describe("Recording an external stream", () => {
     test("records the stream and stores chunks while recording", async ({
         page,
     }) => {
+        // stopping first encodes every 1s chunk still queued (slow in CI)
+        test.setTimeout(90_000);
         await page.getByTestId("start").click();
         await expect(page.getByTestId("recording")).toHaveText("true");
 
@@ -48,7 +51,7 @@ test.describe("Recording an external stream", () => {
                 async () =>
                     Number(await page.getByTestId("size").textContent()),
                 {
-                    timeout: 15_000,
+                    timeout: 45_000,
                 },
             )
             .toBeGreaterThan(0);
@@ -154,6 +157,8 @@ test("drops a start whose page was left meanwhile", async ({ page }) => {
 });
 
 test("reports a lost chunk and keeps the rest", async ({ page }) => {
+    // stopping first encodes every chunk queued behind the slow first one
+    test.setTimeout(90_000);
     await page.goto("/externalStream?failStore=1");
     await page.getByTestId("start").click();
     await expect(page.getByTestId("recording")).toHaveText("true");
@@ -165,59 +170,9 @@ test("reports a lost chunk and keeps the rest", async ({ page }) => {
 
     await expect(page.getByTestId("error")).toContainText(
         "Part of the recording could not be stored",
-        { timeout: 15_000 },
+        { timeout: 45_000 },
     );
     await expect(page.getByTestId("size")).toBeEmpty();
     expect(await countStored(page, "audioSessions")).toBe(1);
     await page.getByTestId("release").click();
 });
-
-/**
- * Counts the audio chunks the recorder has written to IndexedDB.
- *
- * @param page - The page under test.
- * @returns Number of stored chunks.
- */
-function countStoredChunks(
-    page: import("@playwright/test").Page,
-): Promise<number> {
-    return countStored(page, "audioChunks");
-}
-
-/**
- * Counts the records in one of the recorder's IndexedDB tables.
- *
- * @param page - The page under test.
- * @param table - The object store to count.
- * @returns Number of records.
- */
-function countStored(
-    page: import("@playwright/test").Page,
-    table: "audioChunks" | "audioSessions",
-): Promise<number> {
-    return page.evaluate(
-        (table) =>
-            new Promise<number>((resolve, reject) => {
-                const open = indexedDB.open("AudioRecorderDB");
-                open.onerror = () => reject(open.error);
-                open.onsuccess = () => {
-                    const db = open.result;
-                    if (!db.objectStoreNames.contains(table)) {
-                        db.close();
-                        resolve(0);
-                        return;
-                    }
-                    const count = db
-                        .transaction(table)
-                        .objectStore(table)
-                        .count();
-                    count.onsuccess = () => {
-                        db.close();
-                        resolve(count.result);
-                    };
-                    count.onerror = () => reject(count.error);
-                };
-            }),
-        table,
-    );
-}
