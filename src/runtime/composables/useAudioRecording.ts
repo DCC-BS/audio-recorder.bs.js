@@ -1,7 +1,7 @@
 import { computed, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { AudioStorageService } from "../services/audioStorage";
-import { isResumable } from "../services/db";
+import { type AudioSessionStatus, isResumable } from "../services/db";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
@@ -215,7 +215,16 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             void releaseRecorder();
             Promise.all([stored, paused])
                 .catch(() => {})
-                .then(() => audioStorage.setSessionStatus(sessionId, "paused"))
+                // incomplete audio stays "recording" (interrupted), so it
+                // does not pass as a saved pause
+                .then(() =>
+                    audioStorage.setSessionStatus(
+                        sessionId,
+                        chunkFailed || pauseSaveFailed.value
+                            ? "recording"
+                            : "paused",
+                    ),
+                )
                 .catch(() => {})
                 .finally(releaseOwnership);
             return;
@@ -332,8 +341,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         currentSession.value = undefined;
         // the session this start created, the only one it may delete
         let createdId: string | undefined;
-        // lets a failure put a resumed session back
+        // lets a failure put a resumed session back to its stored status
         let resumedStatusChanged = false;
+        let resumedFrom: AudioSessionStatus = "paused";
         let openingDevices = false;
 
         try {
@@ -354,6 +364,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                     );
                 }
                 currentSession.value = resumeId;
+                resumedFrom = session.status ?? "recording";
                 elapsed = session.duration ?? 0;
                 recordingTime.value = Math.floor(elapsed);
             }
@@ -383,6 +394,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 releaseLock = (await acquireSessionLock(id)) ?? (() => {});
             }
             ensureNotDisposed();
+            // the input may have ended while the status was written
+            if (resumeId && !recorder.isHealthy) {
+                throw new InputUnavailable(
+                    t("audio-recorder.audio.errors.inputUnavailable"),
+                );
+            }
 
             opt.onRecordingStarted(recorder.stream);
             // the callback may already have asked to stop
@@ -407,7 +424,10 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             try {
                 if (resumeId) {
                     if (resumedStatusChanged) {
-                        await audioStorage.setSessionStatus(resumeId, "paused");
+                        await audioStorage.setSessionStatus(
+                            resumeId,
+                            resumedFrom,
+                        );
                     }
                 } else if (createdId) {
                     await audioStorage.deleteSession(createdId);

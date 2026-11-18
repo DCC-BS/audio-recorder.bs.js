@@ -20,14 +20,14 @@ function onFinished() {
     refresh();
 }
 
-const { abandonedRecording, getMp3Blob, deleteAbandonedRecording, refresh } =
+const { abandonedRecording, exportSession, deleteAbandonedRecording, refresh } =
     useAudioSessions({
         logger: console.log,
         deleteOldSessionsDaysInterval: 1, // 0.000694444444 = 1min
     });
 
 async function downloadAudio(id: string) {
-    const blob = await getMp3Blob(id);
+    const { mp3Blob: blob, chunkCount } = await exportSession(id);
     if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -39,7 +39,11 @@ async function downloadAudio(id: string) {
         URL.revokeObjectURL(url);
     }
 
-    deleteAbandonedRecording(id);
+    // refuses if another tab added audio after the export: it stays listed
+    await deleteAbandonedRecording(id, chunkCount).catch((e) => {
+        console.warn("Recording kept:", e);
+        refresh();
+    });
 }
 </script>
 

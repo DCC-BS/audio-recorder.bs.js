@@ -164,7 +164,9 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 #### Pause and resume
 
-`pauseRecording()` encodes and stores everything recorded so far, then marks the session as `paused` in IndexedDB. `isSavingPause` is true until that is done; after that a paused recording survives a reload, a closed tab or the system killing the app, and `isBusy` is false. `resumeRecording()` continues it; `stopRecording()` finishes it like a running recording.
+`pauseRecording()` encodes and stores everything recorded so far, then marks the session as `paused` in IndexedDB. `isSavingPause` is true until that is done; after that a paused recording survives a reload, a closed tab or the system killing the app, and `isBusy` is false. `resumeRecording()` continues it; `stopRecording()` finishes it like a running recording. If part of the audio could not be stored, `pauseSaveFailed` is set and the session stays listed as interrupted instead of paused.
+
+Surviving a reload needs the default IndexedDB storage: with `disableDefaultStore` a pause only stops capturing, and `resumeSession()` refuses to run. An app that stores audio itself through `onStore` needs its own recovery.
 
 What happens to the devices while paused depends on `pauseMode`:
 

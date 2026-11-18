@@ -219,20 +219,16 @@ export function createPauseResume(ctx: PauseContext) {
             wasInterrupted.value = false;
             ctx.isRecording.value = true;
         } catch (e) {
-            if (!(e instanceof StartCancelled)) {
-                console.error(e);
-                ctx.fail(
-                    e instanceof InputUnavailable
-                        ? e.message
-                        : ctx.deviceError(e),
-                );
-            }
             const sessionId = ctx.currentSession.value;
             // once unmounted, unmount writes the final status and lets go
-            // of the session; another page may own it by the time this runs
+            // of the session; another page may own it by the time this runs.
+            // An incomplete pause was left as "recording" and stays so.
             if (statusChanged && sessionId && !ctx.isDisposed()) {
                 await ctx.audioStorage
-                    .setSessionStatus(sessionId, "paused")
+                    .setSessionStatus(
+                        sessionId,
+                        pauseSaveFailed.value ? "recording" : "paused",
+                    )
                     .catch(() => {});
             }
             // stays paused. A recorder opened half way is of no use, and
@@ -248,6 +244,15 @@ export function createPauseResume(ctx: PauseContext) {
                 await ctx.releaseRecorder();
             } else {
                 recorder?.pause();
+            }
+            // reported last: a throwing onError must not skip the cleanup
+            if (!(e instanceof StartCancelled)) {
+                console.error(e);
+                ctx.fail(
+                    e instanceof InputUnavailable
+                        ? e.message
+                        : ctx.deviceError(e),
+                );
             }
             return;
         } finally {

@@ -700,4 +700,115 @@ describe("useAudioRecording review fixes", () => {
         );
         expect(first.stop).toHaveBeenCalled();
     });
+
+    it("waits for the stopped status before deleting", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        const r = useAudioRecording();
+        await r.startRecording();
+        first.emit(1);
+
+        let written: () => void = () => {};
+        storage.setSessionStatus.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    written = resolve;
+                }),
+        );
+        const stopping = r.stopRecording();
+        await vi.waitFor(() =>
+            expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+                "session-1",
+                "stopped",
+            ),
+        );
+        expect(storage.deleteSession).not.toHaveBeenCalled();
+
+        written();
+        await stopping;
+        expect(storage.deleteSession).toHaveBeenCalledWith("session-1");
+    });
+
+    it("rejects a stored session whose input ends while it is activated", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.getSession.mockResolvedValueOnce({
+            id: "stored",
+            status: "recording",
+        } as never);
+        storage.setSessionStatus.mockImplementationOnce(async () => {
+            first.isHealthy = false;
+        });
+        const r = useAudioRecording();
+
+        await r.resumeSession("stored");
+
+        expect(r.isRecording.value).toBe(false);
+        expect(r.error.value).toBe(
+            "audio-recorder.audio.errors.inputUnavailable",
+        );
+        // back to what it was: an interrupted session, not a saved pause
+        expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+            "stored",
+            "recording",
+        );
+        expect(first.stop).toHaveBeenCalled();
+    });
+
+    it("keeps an incomplete pause interrupted when its resume is cancelled", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.storeAudioChunk.mockRejectedValueOnce(new Error("quota"));
+        const r = useAudioRecording({ pauseMode: "keep" });
+        await r.startRecording();
+        first.emit(1);
+        await r.pauseRecording();
+        expect(r.pauseSaveFailed.value).toBe(true);
+
+        let written: () => void = () => {};
+        storage.setSessionStatus.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    written = resolve;
+                }),
+        );
+        // the failed pause already wrote "recording"; wait for resume's own
+        const writes = storage.setSessionStatus.mock.calls.length;
+        const resuming = r.resumeRecording();
+        await vi.waitFor(() =>
+            expect(storage.setSessionStatus.mock.calls.length).toBe(writes + 1),
+        );
+        await r.stopRecording();
+        written();
+        await resuming;
+
+        expect(r.isPaused.value).toBe(true);
+        expect(storage.setSessionStatus).not.toHaveBeenLastCalledWith(
+            "session-1",
+            "paused",
+        );
+    });
+
+    it("releases a reopened microphone even when onError throws", async () => {
+        const first = fakeRecorder();
+        const second = fakeRecorder();
+        second.isHealthy = false;
+        startPcmRecorder
+            .mockResolvedValueOnce(first)
+            .mockResolvedValueOnce(second);
+        const r = useAudioRecording({
+            pauseMode: "release",
+            onError: () => {
+                throw new Error("host");
+            },
+        });
+        await r.startRecording();
+        first.emit(1);
+        await r.pauseRecording();
+
+        await r.resumeRecording().catch(() => {});
+
+        expect(second.stop).toHaveBeenCalled();
+        expect(r.isPaused.value).toBe(true);
+    });
 });
