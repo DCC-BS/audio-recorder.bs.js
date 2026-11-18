@@ -2,6 +2,8 @@
 import { useAudioSessions } from "../../src/runtime/composables/useAudioSessions";
 
 const logs = ref<string[]>([]);
+// a stored session to continue instead of starting a new one
+const resumeId = ref<string>();
 
 const { abandonedRecording, getMp3Blob, deleteAbandonedRecording } =
     useAudioSessions({
@@ -33,6 +35,8 @@ async function downloadAudio(id: string) {
         <div v-for="value in abandonedRecording" :key="value.id">
             <div class="mb-2 flex gap-2 justify-center">
                 <span>Recording started at: {{ new Date(value.createdAt).toLocaleString() }}</span>
+                <span class="session-status">Status: {{ value.status }}</span>
+                <UButton @click="resumeId = value.id" color="primary">Continue</UButton>
                 <UButton @click="downloadAudio(value.id)" color="secondary">Recover</UButton>
                 <UButton @click="deleteAbandonedRecording(value.id)" color="error">Delete</UButton>
             </div>
@@ -40,7 +44,7 @@ async function downloadAudio(id: string) {
     </div>
 
     <div class="flex justify-center mt-10">
-        <AudioRecorder :store-to-db-interval="1" :logger="(l) => logs.push(l)" @recording-started="() => logs = []" />
+        <AudioRecorder :key="resumeId ?? 'new'" :resume-session-id="resumeId" :store-to-db-interval="1" :logger="(l) => logs.push(l)" @recording-started="() => logs = []" />
     </div>
 
     <div v-for="log in logs">

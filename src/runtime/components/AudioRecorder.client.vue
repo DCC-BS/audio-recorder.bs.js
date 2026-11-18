@@ -3,15 +3,26 @@ import UButton from "@nuxt/ui/components/Button.vue";
 import { AnimatePresence, motion } from "motion-v";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAudioRecording } from "../composables/useAudioRecording";
+import {
+    type PauseMode,
+    useAudioRecording,
+} from "../composables/useAudioRecording";
 
 import AudioVisualizer from "./AudioVisualizer.client.vue";
 
 interface Props {
     showResult?: boolean;
+    /** Starts recording on mount; with `resumeSessionId`, continues that session instead. */
     autoStart?: boolean;
     storeToDbInterval?: number;
     logger?: (msg: string) => void;
+    /** Shows the pause button. */
+    allowPause?: boolean;
+    pauseMode?: PauseMode;
+    /** A stored session (paused or interrupted) to continue when recording starts. */
+    resumeSessionId?: string;
+    /** Free-form tag stored with new sessions. */
+    sessionSource?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -19,11 +30,17 @@ const props = withDefaults(defineProps<Props>(), {
     autoStart: false,
     logger: undefined,
     storeToDbInterval: 5,
+    allowPause: true,
+    pauseMode: "auto",
+    resumeSessionId: undefined,
+    sessionSource: undefined,
 });
 
 const emit = defineEmits<{
     (e: "recording-started", stream: MediaStream): void;
     (e: "recording-stopped", audioBlob: Blob, audioUrl: string): void;
+    (e: "recording-paused", interrupted: boolean): void;
+    (e: "recording-resumed"): void;
 }>();
 
 const stream = ref<MediaStream>();
@@ -34,13 +51,19 @@ const {
     isRecording,
     isStarting,
     isProcessing,
+    isPaused,
+    isSavingPause,
     isBusy,
     startRecording,
+    pauseRecording,
+    resumeRecording,
+    resumeSession,
     stopRecording,
     recordingTime,
     error,
     audioUrl,
     wasSuspended,
+    wasInterrupted,
 } = useAudioRecording({
     onRecordingStarted: (s: MediaStream) => {
         stream.value = s;
@@ -50,13 +73,32 @@ const {
     onRecordingStopped: (audioBlob: Blob, audioUrl: string) => {
         emit("recording-stopped", audioBlob, audioUrl);
     },
+    onRecordingPaused: (interrupted: boolean) => {
+        emit("recording-paused", interrupted);
+    },
+    onRecordingResumed: () => {
+        emit("recording-resumed");
+    },
     storeToDbInterval: props.storeToDbInterval,
     logger: props.logger,
+    pauseMode: props.pauseMode,
+    sessionSource: props.sessionSource,
 });
+
+/**
+ * Starts a new recording, or continues `resumeSessionId` when given.
+ */
+function start(): void {
+    if (props.resumeSessionId) {
+        resumeSession(props.resumeSessionId);
+    } else {
+        startRecording();
+    }
+}
 
 onMounted(() => {
     if (props.autoStart) {
-        startRecording();
+        start();
     }
 });
 
@@ -73,6 +115,11 @@ function stopFromButton(): void {
     stopRecording().catch(() => {});
 }
 
+/** The recording section stays up while paused, with the clock frozen. */
+const showRecordingSection = computed(
+    () => isRecording.value || isPaused.value,
+);
+
 const dismissSuspendedWarning = () => {
     showSuspendedWarning.value = false;
 };
@@ -81,14 +128,20 @@ defineExpose({
     isRecording,
     isStarting,
     isProcessing,
+    isPaused,
+    isSavingPause,
     isBusy,
     startRecording,
+    pauseRecording,
+    resumeRecording,
+    resumeSession,
     stopRecording,
     recordingTime,
     formattedRecordingTime,
     error,
     audioUrl,
     wasSuspended,
+    wasInterrupted,
 });
 </script>
 
@@ -97,7 +150,7 @@ defineExpose({
         <!-- Start Recording Button -->
         <AnimatePresence>
             <motion.div
-                v-if="!isRecording"
+                v-if="!showRecordingSection"
                 key="start-button"
                 :initial="{ opacity: 0, scale: 0.8, y: 20 }"
                 :animate="{ opacity: 1, scale: 1, y: 0 }"
@@ -112,10 +165,14 @@ defineExpose({
                         icon="i-lucide-mic"
                         :loading="isStarting || isProcessing"
                         :disabled="isStarting || isProcessing"
-                        @click="startRecording"
+                        @click="start"
                         size="xl"
                     >
-                        {{ t("audio-recorder.audio.startRecording") }}
+                        {{
+                            props.resumeSessionId
+                                ? t("audio-recorder.audio.continueRecording")
+                                : t("audio-recorder.audio.startRecording")
+                        }}
                     </UButton>
                 </div>
             </motion.div>
@@ -124,7 +181,7 @@ defineExpose({
         <!-- Recording Indicator -->
         <AnimatePresence>
             <motion.div
-                v-if="isRecording"
+                v-if="showRecordingSection"
                 key="recording-section"
                 :initial="{ opacity: 0, scale: 0.9 }"
                 :animate="{ opacity: 1, scale: 1 }"
@@ -133,7 +190,38 @@ defineExpose({
                 class="text-center space-y-6"
             >
                 <!-- Recording Status -->
-                <div class="flex items-center justify-center gap-3">
+                <div
+                    v-if="isPaused"
+                    class="flex items-center justify-center gap-3"
+                >
+                    <UIcon
+                        name="i-lucide-pause"
+                        class="w-4 h-4 text-amber-500"
+                    />
+                    <span
+                        class="text-lg font-medium text-amber-600 dark:text-amber-400"
+                    >
+                        {{ t("audio-recorder.audio.recordingPaused") }}
+                    </span>
+                </div>
+                <p
+                    v-if="isPaused"
+                    class="text-sm text-slate-600 dark:text-slate-400"
+                >
+                    <UIcon
+                        v-if="isSavingPause"
+                        name="i-lucide-loader-circle"
+                        class="animate-spin align-middle mr-1"
+                    />
+                    {{
+                        isSavingPause
+                            ? t("audio-recorder.audio.savingPause")
+                            : wasInterrupted
+                              ? t("audio-recorder.audio.pausedByInterruption")
+                              : t("audio-recorder.audio.pausedSafely")
+                    }}
+                </p>
+                <div v-else class="flex items-center justify-center gap-3">
                     <motion.div
                         class="w-4 h-4 bg-red-500 rounded-full"
                         :animate="{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }"
@@ -166,6 +254,7 @@ defineExpose({
 
                 <!-- Audio Visualizer -->
                 <motion.div
+                    v-if="isRecording"
                     :initial="{ opacity: 0, y: 20 }"
                     :animate="{ opacity: 1, y: 0 }"
                     :transition="{ delay: 0.4 }"
@@ -183,11 +272,32 @@ defineExpose({
                     :animate="{ opacity: 1, scale: 1 }"
                     :transition="{ delay: 0.6, type: 'spring' }"
                 >
-                    <div>
+                    <div class="flex items-center justify-center gap-2">
+                        <UButton
+                            v-if="props.allowPause && isRecording"
+                            color="neutral"
+                            variant="link"
+                            icon="i-lucide-pause"
+                            @click="pauseRecording"
+                        >
+                            {{ t("audio-recorder.audio.pauseRecording") }}
+                        </UButton>
+                        <UButton
+                            v-if="isPaused"
+                            color="primary"
+                            variant="link"
+                            icon="i-lucide-play"
+                            :loading="isStarting"
+                            :disabled="isStarting"
+                            @click="resumeRecording"
+                        >
+                            {{ t("audio-recorder.audio.resumeRecording") }}
+                        </UButton>
                         <UButton
                             color="secondary"
                             variant="link"
                             icon="i-lucide-square"
+                            :disabled="isStarting"
                             @click="stopFromButton"
                         >
                             {{ t("audio-recorder.audio.stopRecording") }}

@@ -26,7 +26,8 @@ const { concatMp3 } = useFFmpeg();
 
 onMounted(async () => {
     try {
-        const fetchedSessions = await audioStorage.getAllSessions();
+        // sessions recorded in some tab right now are not listed
+        const fetchedSessions = await audioStorage.getResumableSessions();
         sessions.value = fetchedSessions;
     } catch (error) {
         console.error("Failed to load sessions:", error);
@@ -89,7 +90,10 @@ async function handleCustomAction(
 ): Promise<void> {
     actionLoadingStates.value[actionKey] = sessionId;
     try {
-        const mp3Blob = await getMp3Blob(sessionId);
+        const mp3Blob =
+            action.needsAudio === false
+                ? new Blob([], { type: "audio/mp3" })
+                : await getMp3Blob(sessionId);
 
         const deleteSessionFn = async () => {
             await deleteSession(sessionId);
@@ -173,6 +177,10 @@ function formatDate(dateString: string): string {
                                     <div>
                                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                                             {{ session.name }}
+                                            <UBadge :color="session.status === 'paused' ? 'warning' : 'neutral'"
+                                                variant="subtle" size="sm" class="ml-2 align-middle">
+                                                {{ t(`audio-recorder.sessionExplorer.status.${session.status ?? 'recording'}`) }}
+                                            </UBadge>
                                         </h3>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">
                                             {{ t('audio-recorder.sessionExplorer.sessionId') }}: {{ session.id.slice(0,
@@ -204,7 +212,8 @@ function formatDate(dateString: string): string {
                             <!-- Action Buttons -->
                             <div class="flex gap-2 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
                                 <!-- Custom Actions (Left of Download) -->
-                                <UButton v-for="(action, index) in props.customActions" :key="getActionKey(index, session.id)"
+                                <template v-for="(action, index) in props.customActions" :key="getActionKey(index, session.id)">
+                                <UButton v-if="!action.visible || action.visible(session)"
                                     @click="handleCustomAction(action, session.id, getActionKey(index, session.id))"
                                     :color="action.color || 'primary'" :variant="action.variant || 'soft'"
                                     :icon="action.icon"
@@ -213,6 +222,7 @@ function formatDate(dateString: string): string {
                                     class="transition-all duration-200 hover:scale-105">
                                     {{ action.label }}
                                 </UButton>
+                                </template>
 
                                 <!-- Slot for additional custom actions -->
                                 <slot name="actions" :session="session" :get-mp3-blob="() => getMp3Blob(session.id)"

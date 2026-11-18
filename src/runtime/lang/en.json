@@ -15,14 +15,22 @@
                     "checkPermissions": "Check browser permissions for microphone access.",
                     "differentBrowser": "Try a different browser.",
                     "restart": "Restart your browser or device."
-                }
+                },
+                "sessionInUse": "This recording is open in another tab or window."
             },
             "warnings": {
                 "suspendedRecording": "Recording was interrupted while in background. Some audio may be missing.",
                 "dismiss": "Dismiss"
             },
             "recordingTime": "Recording time",
-            "newRecording": "New recording {date}"
+            "newRecording": "New recording {date}",
+            "continueRecording": "Continue Recording",
+            "pauseRecording": "Pause",
+            "resumeRecording": "Resume",
+            "recordingPaused": "Recording paused",
+            "pausedSafely": "Everything so far is saved. You can close the app and continue later.",
+            "pausedByInterruption": "Paused because another app (e.g. a call) took the microphone. Everything so far is saved.",
+            "savingPause": "Saving what was recorded so far…"
         },
         "sessionExplorer": {
             "title": "Audio Sessions",
@@ -36,7 +44,12 @@
             "downloading": "Downloading...",
             "delete": "Delete",
             "deleting": "Deleting...",
-            "count": "one session total| {count} sessions total"
+            "count": "one session total| {count} sessions total",
+            "status": {
+                "recording": "Interrupted",
+                "paused": "Paused",
+                "stopped": "Stopped"
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
 import { useFFmpeg } from "./useFFmpeg";
@@ -22,9 +22,21 @@ const optionsDefault: Required<AudioSessionOptions> = {
     logger: (_: string) => {},
 };
 
+/**
+ * Lists the stored recordings no tab is recording right now: paused,
+ * interrupted (crash, closed tab) and stopped ones. Newest first.
+ */
 export async function getAbandonedRecording(): Promise<AudioSession[]> {
     const audioStorage = new AudioStorageService();
-    return audioStorage.getAllSessions();
+    return audioStorage.getResumableSessions();
+}
+
+/**
+ * The paused recording waiting to be continued, if any.
+ */
+export async function getPausedRecording(): Promise<AudioSession | undefined> {
+    const audioStorage = new AudioStorageService();
+    return audioStorage.getPausedSession();
 }
 
 export function useAudioSessions(options: AudioSessionOptions = {}) {
@@ -34,6 +46,17 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     const isReady = ref(false);
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
+    /** The paused recording waiting to be continued, if any. */
+    const pausedRecording = computed(() =>
+        abandonedRecording.value
+            ?.filter((s) => s.status === "paused")
+            .sort((a, b) =>
+                (b.pausedAt ?? b.createdAt).localeCompare(
+                    a.pausedAt ?? a.createdAt,
+                ),
+            )
+            .at(0),
+    );
 
     onMounted(async () => {
         await audioStorage.clearSessionsOlderThan(
@@ -41,9 +64,16 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         ); // days
 
         await audioStorage.clearSessionOverThreshold(opt.maxSessionsToKeep);
-        abandonedRecording.value = await audioStorage.getAllSessions();
+        await refresh();
         isReady.value = true;
     });
+
+    /**
+     * Reloads the stored recordings, e.g. after one was continued.
+     */
+    async function refresh(): Promise<void> {
+        abandonedRecording.value = await audioStorage.getResumableSessions();
+    }
 
     async function getMp3Blob(sessionId: string): Promise<Blob> {
         const session = await audioStorage.getSession(sessionId);
@@ -71,6 +101,8 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     return {
         isReady,
         abandonedRecording,
+        pausedRecording,
+        refresh,
         getMp3Blob,
         deleteAbandonedRecording,
     };
