@@ -3,7 +3,11 @@ import { AnimatePresence, motion } from "motion-v";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useFFmpeg } from "#imports";
-import { AudioStorageService } from "../services/audioStorage";
+import {
+    AudioStorageService,
+    SessionChanged,
+    SessionInUse,
+} from "../services/audioStorage";
 import type { AudioSession } from "../services/db";
 import type { AudioSessionExplorerProps, CustomAction } from "../types";
 
@@ -22,6 +26,7 @@ const isLoading = ref(true);
 const deletingSessionId = ref<string | null>(null);
 const downloadingSessionId = ref<string | null>(null);
 const actionLoadingStates = ref<Record<string, string | null>>({});
+const deleteError = ref<string>();
 const { concatMp3 } = useFFmpeg();
 
 onMounted(async () => {
@@ -36,17 +41,37 @@ onMounted(async () => {
     }
 });
 
-async function deleteSession(sessionId: string): Promise<void> {
+/**
+ * Deletes a listed session; the list may be stale.
+ *
+ * @param expectedChunkCount - Only delete the audio a custom action handled.
+ * @throws SessionInUse, SessionChanged
+ */
+async function deleteSession(
+    sessionId: string,
+    expectedChunkCount?: number,
+): Promise<void> {
     deletingSessionId.value = sessionId;
+    deleteError.value = undefined;
     try {
-        // the list may be stale: another tab may be recording it by now
-        await audioStorage.deleteStoredSession(sessionId);
+        await audioStorage.deleteStoredSession(sessionId, expectedChunkCount);
         sessions.value = sessions.value.filter((s) => s.id !== sessionId);
     } catch (error) {
         console.error("Failed to delete session:", error);
+        if (error instanceof SessionInUse) {
+            deleteError.value = t("audio-recorder.audio.errors.sessionInUse");
+        } else if (error instanceof SessionChanged) {
+            deleteError.value = t("audio-recorder.audio.errors.sessionChanged");
+        }
+        throw error;
     } finally {
         deletingSessionId.value = null;
     }
+}
+
+/** The built-in Delete button; a refusal is shown, not thrown. */
+function onDelete(sessionId: string): void {
+    deleteSession(sessionId).catch(() => {});
 }
 
 async function downloadAudio(sessionId: string): Promise<void> {
@@ -70,18 +95,17 @@ async function downloadAudio(sessionId: string): Promise<void> {
 }
 
 async function getMp3Blob(sessionId: string): Promise<Blob> {
-    const chunks = await audioStorage.getSessionChunks(sessionId);
+    return (await exportSession(sessionId)).mp3Blob;
+}
 
-    if (!chunks || chunks.length === 0) {
+async function exportSession(
+    sessionId: string,
+): Promise<{ mp3Blob: Blob; chunkCount: number }> {
+    const chunks = await audioStorage.getSessionChunks(sessionId);
+    if (chunks.length === 0) {
         throw new Error("No audio chunks found for this session");
     }
-
-    const session = await audioStorage.getSession(sessionId);
-    if (!session) {
-        throw new Error(`Session with ID ${sessionId} not found`);
-    }
-
-    return await concatMp3(chunks);
+    return { mp3Blob: await concatMp3(chunks), chunkCount: chunks.length };
 }
 
 async function handleCustomAction(
@@ -91,16 +115,17 @@ async function handleCustomAction(
 ): Promise<void> {
     actionLoadingStates.value[actionKey] = sessionId;
     try {
-        const mp3Blob =
+        const { mp3Blob, chunkCount } =
             action.needsAudio === false
-                ? new Blob([], { type: "audio/mp3" })
-                : await getMp3Blob(sessionId);
+                ? {
+                      mp3Blob: new Blob([], { type: "audio/mp3" }),
+                      chunkCount: undefined,
+                  }
+                : await exportSession(sessionId);
 
-        const deleteSessionFn = async () => {
-            await deleteSession(sessionId);
-        };
+        const deleteSessionFn = () => deleteSession(sessionId, chunkCount);
 
-        await action.handler(sessionId, mp3Blob, deleteSessionFn);
+        await action.handler(sessionId, mp3Blob, deleteSessionFn, chunkCount);
     } catch (error) {
         console.error("Failed to handle custom action:", error);
     } finally {
@@ -133,6 +158,9 @@ function formatDate(dateString: string): string {
                 {{ t('audio-recorder.sessionExplorer.subtitle') }}
             </p>
         </motion.div>
+
+        <UAlert v-if="deleteError" color="error" variant="subtle" :description="deleteError" class="mb-4"
+            role="alert" />
 
         <!-- Loading State -->
         <motion.div v-if="isLoading" :initial="{ opacity: 0 }" :animate="{ opacity: 1 }" :exit="{ opacity: 0 }"
@@ -239,7 +267,7 @@ function formatDate(dateString: string): string {
                                         t('audio-recorder.sessionExplorer.downloadMp3') }}
                                 </UButton>
 
-                                <UButton v-if="props.showDeleteButton" @click="deleteSession(session.id)"
+                                <UButton v-if="props.showDeleteButton" @click="onDelete(session.id)"
                                     color="error" variant="soft" icon="i-lucide-trash-2"
                                     :loading="deletingSessionId === session.id"
                                     :disabled="deletingSessionId === session.id || downloadingSessionId === session.id"

@@ -17,6 +17,7 @@
                     "restart": "Restart your browser or device."
                 },
                 "sessionInUse": "This recording is open in another tab or window.",
+                "sessionChanged": "This recording got new audio in the meantime and was kept.",
                 "pauseNotSaved": "Paused, but part of the recording could not be saved. Don't close the app yet: finish the recording to keep what was saved, or check the abandoned recordings.",
                 "sessionNotResumable": "This recording was already finished and is only kept as a backup; it cannot be continued.",
                 "resumeNeedsStore": "Stored recordings can only be continued when the default storage is enabled.",

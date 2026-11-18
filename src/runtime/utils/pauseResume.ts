@@ -83,10 +83,12 @@ export function createPauseResume(ctx: PauseContext) {
 
     // the pause in progress; stop and resume wait for it
     let pendingPause: Promise<void> | undefined;
+    // the resume in progress; unmount waits for it before the final status
+    let pendingResume: Promise<void> | undefined;
 
-    /** Settles once a pause in progress is stored. */
-    function settled(): Promise<void> {
-        return pendingPause ?? Promise.resolve();
+    /** Settles once a pause or resume in progress is done. */
+    async function settled(): Promise<void> {
+        await Promise.allSettled([pendingPause, pendingResume]);
     }
 
     function pause(interrupted: boolean): Promise<void> {
@@ -163,8 +165,17 @@ export function createPauseResume(ctx: PauseContext) {
      * released (which may show a permission prompt); a failure is reported
      * through `error` and the recording stays paused.
      */
-    async function resume(): Promise<void> {
-        await settled();
+    function resume(): Promise<void> {
+        if (!pendingResume) {
+            pendingResume = doResume().finally(() => {
+                pendingResume = undefined;
+            });
+        }
+        return pendingResume;
+    }
+
+    async function doResume(): Promise<void> {
+        await pendingPause;
         if (!isPaused.value || ctx.isStarting.value || ctx.isStopping()) {
             return;
         }
@@ -217,7 +228,9 @@ export function createPauseResume(ctx: PauseContext) {
                 );
             }
             const sessionId = ctx.currentSession.value;
-            if (statusChanged && sessionId) {
+            // once unmounted, unmount writes the final status and lets go
+            // of the session; another page may own it by the time this runs
+            if (statusChanged && sessionId && !ctx.isDisposed()) {
                 await ctx.audioStorage
                     .setSessionStatus(sessionId, "paused")
                     .catch(() => {});

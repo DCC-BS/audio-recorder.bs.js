@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp, defineComponent } from "vue";
 
 const storage = vi.hoisted(() => ({
     createSession: vi.fn(async () => "session-1"),
@@ -649,5 +650,54 @@ describe("useAudioRecording review fixes", () => {
         expect(onError).toHaveBeenCalledWith(
             "audio-recorder.audio.errors.inputUnavailable",
         );
+    });
+
+    it("leaves the final status to unmount when a resume is cancelled by it", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        let r!: ReturnType<typeof useAudioRecording>;
+        const app = createApp(
+            defineComponent({
+                setup() {
+                    r = useAudioRecording({ pauseMode: "keep" });
+                    return () => null;
+                },
+            }),
+        );
+        app.mount(document.createElement("div"));
+        await r.startRecording();
+        first.emit(1);
+        await r.pauseRecording();
+
+        let statusWritten: () => void = () => {};
+        storage.setSessionStatus.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    statusWritten = resolve;
+                }),
+        );
+        const resuming = r.resumeRecording();
+        await vi.waitFor(() =>
+            expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+                "session-1",
+                "recording",
+            ),
+        );
+        storage.setSessionStatus.mockClear();
+
+        app.unmount();
+        statusWritten();
+        await resuming;
+        // unmount writes its status a few ticks after the resume settles
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // one write, from unmount after the resume settled; no rollback
+        // racing it once the session lock is released
+        expect(storage.setSessionStatus).toHaveBeenCalledOnce();
+        expect(storage.setSessionStatus).toHaveBeenCalledWith(
+            "session-1",
+            "paused",
+        );
+        expect(first.stop).toHaveBeenCalled();
     });
 });

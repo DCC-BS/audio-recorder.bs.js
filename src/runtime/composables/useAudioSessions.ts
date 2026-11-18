@@ -62,21 +62,36 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         isReady.value = true;
     });
 
+    // a delete invalidates refreshes still in flight: they may have read
+    // the deleted session
+    let generation = 0;
+
     async function refresh(): Promise<void> {
-        abandonedRecording.value = await audioStorage.getResumableSessions();
+        const current = ++generation;
+        const sessions = await audioStorage.getResumableSessions();
+        if (current === generation) {
+            abandonedRecording.value = sessions;
+        }
+    }
+
+    /**
+     * Joins a stored session into one MP3.
+     *
+     * @returns The MP3 and the number of chunks in it, to pass to
+     *   `markAsStopped` or `deleteAbandonedRecording` afterwards.
+     */
+    async function exportSession(
+        sessionId: string,
+    ): Promise<{ mp3Blob: Blob; chunkCount: number }> {
+        const chunks = await audioStorage.getSessionChunks(sessionId);
+        if (chunks.length === 0) {
+            throw new Error(`Session with ID ${sessionId} has no audio`);
+        }
+        return { mp3Blob: await concatMp3(chunks), chunkCount: chunks.length };
     }
 
     async function getMp3Blob(sessionId: string): Promise<Blob> {
-        const session = await audioStorage.getSession(sessionId);
-
-        if (!session) {
-            throw new Error(`Session with ID ${sessionId} not found`);
-        }
-
-        const mp3Chunks = await audioStorage.getSessionChunks(sessionId);
-
-        const mp3Blob = await concatMp3(mp3Chunks);
-        return mp3Blob;
+        return (await exportSession(sessionId)).mp3Blob;
     }
 
     /** Keeps a handed-on recording as a backup; see AudioStorageService.markAsStopped. */
@@ -88,8 +103,13 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         await refresh();
     }
 
-    async function deleteAbandonedRecording(sessionId: string): Promise<void> {
-        await audioStorage.deleteStoredSession(sessionId);
+    /** See AudioStorageService.deleteStoredSession. */
+    async function deleteAbandonedRecording(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
+        await audioStorage.deleteStoredSession(sessionId, expectedChunkCount);
+        generation++;
 
         if (abandonedRecording.value) {
             abandonedRecording.value = abandonedRecording.value.filter(
@@ -105,6 +125,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         refresh,
         markAsStopped,
         getMp3Blob,
+        exportSession,
         deleteAbandonedRecording,
     };
 }

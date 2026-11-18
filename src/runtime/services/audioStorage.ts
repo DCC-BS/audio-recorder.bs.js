@@ -1,6 +1,12 @@
 import { acquireSessionLock, getLiveSessionIds } from "../utils/sessionLock";
 import { type AudioSession, type AudioSessionStatus, db } from "./db";
 
+/** Another page is recording the session. */
+export class SessionInUse extends Error {}
+
+/** The session got new audio since the caller read it. */
+export class SessionChanged extends Error {}
+
 export class AudioStorageService {
     // Generate unique ID
     private generateId(): string {
@@ -186,16 +192,49 @@ export class AudioStorageService {
 
     /**
      * Keeps a handed-on session as a backup that can no longer be continued.
-     * Refuses if another page records it, or if it no longer has
-     * `expectedChunkCount` chunks (continued elsewhere since).
+     *
+     * @param expectedChunkCount - The chunk count of the audio handed on.
+     * @throws SessionInUse, SessionChanged
      */
     public async markAsStopped(
         sessionId: string,
         expectedChunkCount?: number,
     ): Promise<void> {
+        await this.withUnchangedSession(sessionId, expectedChunkCount, () =>
+            this.setSessionStatus(sessionId, "stopped"),
+        );
+    }
+
+    /**
+     * Deletes a session the user picked from a (possibly stale) list. A
+     * recorder deletes its own session with `deleteSession`.
+     *
+     * @param expectedChunkCount - The chunk count of the audio the caller
+     *   kept (e.g. uploaded); newer audio is not deleted with it.
+     * @throws SessionInUse, SessionChanged
+     */
+    public async deleteStoredSession(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
+        await this.withUnchangedSession(sessionId, expectedChunkCount, () =>
+            this.deleteSession(sessionId),
+        );
+    }
+
+    /**
+     * Runs `change` while holding the session's lock, so no recorder can
+     * add audio meanwhile. Chunks are only ever appended, so the chunk
+     * count tells whether the session changed since the caller read it.
+     */
+    private async withUnchangedSession(
+        sessionId: string,
+        expectedChunkCount: number | undefined,
+        change: () => Promise<void>,
+    ): Promise<void> {
         const release = await acquireSessionLock(sessionId);
         if (!release) {
-            throw new Error(
+            throw new SessionInUse(
                 `Session with ID ${sessionId} is being recorded elsewhere`,
             );
         }
@@ -208,26 +247,13 @@ export class AudioStorageService {
                 expectedChunkCount !== undefined &&
                 session.chunkCount !== expectedChunkCount
             ) {
-                throw new Error(
-                    `Session with ID ${sessionId} changed since it was handed on`,
+                throw new SessionChanged(
+                    `Session with ID ${sessionId} got new audio meanwhile`,
                 );
             }
-            await this.setSessionStatus(sessionId, "stopped");
+            await change();
         } finally {
             release();
-        }
-    }
-
-    /**
-     * Deletes a session the user picked from a (possibly stale) list; refuses
-     * if another page records it. A recorder deletes its own session with
-     * `deleteSession`.
-     */
-    public async deleteStoredSession(sessionId: string): Promise<void> {
-        if (!(await this.deleteUnownedSession(sessionId))) {
-            throw new Error(
-                `Session with ID ${sessionId} is being recorded elsewhere`,
-            );
         }
     }
 

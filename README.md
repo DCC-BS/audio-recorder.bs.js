@@ -177,7 +177,9 @@ A stored session that no page is recording is resumable with `resumeSession(sess
 
 Stored sessions are still subject to the cleanup of `useAudioSessions` (by default older than 7 days or beyond the 10 newest, see `deleteOldSessionsDaysInterval` and `maxSessionsToKeep`), paused ones included. Raise those limits if paused recordings should be kept longer.
 
-The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any. `useAudioSessions()` offers the same as `pausedRecording`, plus `refresh()` and `markAsStopped(id)` for a paused recording that was handed on (e.g. for processing) and should no longer count as paused.
+The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any. `useAudioSessions()` offers the same as `pausedRecording`, plus `refresh()` and `markAsStopped(id, chunkCount)` for a paused recording that was handed on (e.g. for processing) and should no longer count as paused.
+
+Another tab may continue a session while this one exports it. `exportSession(id)` returns the MP3 together with the number of chunks in it; pass that count to `markAsStopped` or `deleteAbandonedRecording` and they refuse (`SessionChanged`) instead of stopping or deleting audio the export did not include. Both also refuse while another page records the session (`SessionInUse`). The `deleteSession` a custom action receives does this check on its own.
 
 #### Example
 
@@ -414,7 +416,8 @@ interface CustomAction {
     handler: (
         sessionId: string,
         mp3Blob: Blob,
-        deleteSession: () => Promise<void>,
+        deleteSession: () => Promise<void>, // rejects if the session got new audio meanwhile or is being recorded
+        chunkCount?: number, // chunks in mp3Blob, e.g. for markAsStopped
     ) => void | Promise<void>;
 }
 ```

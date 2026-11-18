@@ -11,10 +11,17 @@ export interface CustomAction {
     needsAudio?: boolean;
     /** Show the action only for some sessions, e.g. by `status`. */
     visible?: (session: AudioSession) => boolean;
+    /**
+     * `deleteSession` deletes only the audio in `mp3Blob` and rejects if
+     * the session got new audio meanwhile or is being recorded.
+     * `chunkCount` is the number of chunks in `mp3Blob` (undefined without
+     * audio), e.g. for `markAsStopped`.
+     */
     handler: (
         sessionId: string,
         mp3Blob: Blob,
         deleteSession: () => Promise<void>,
+        chunkCount?: number,
     ) => void | Promise<void>;
 }
 
