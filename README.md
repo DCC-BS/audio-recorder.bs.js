@@ -144,21 +144,21 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 #### RecordingOptions
 
-| Property              | Type                                          | Default    | Description                                                                                                                                                                                          |
-| --------------------- | --------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onRecordingStarted`  | `(stream: MediaStream) => void`               | `() => {}` | Callback when recording starts, providing the MediaStream                                                                                                                                            |
-| `onRecordingStopped`  | `(audioBlob: Blob, audioUrl: string) => void` | `() => {}` | Callback when recording stops with the audio data                                                                                                                                                    |
-| `onError`             | `(error: string) => void`                     | `() => {}` | Callback when an error occurs during recording                                                                                                                                                       |
-| `storeToDbInterval`   | `number`                                      | `30`       | Interval in seconds to store audio chunks to IndexedDB                                                                                                                                               |
-| `onStore`             | `(mp3Blob: Blob) => void \| Promise<void>`    | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds)                                                                                                     |
-| `logger`              | `(msg: string) => void`                       | `() => {}` | Custom logging function for debugging                                                                                                                                                                |
-| `disableDefaultStore` | `boolean`                                     | `false`    | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback                                                                                    |
-| `getStream`           | `() => Promise<MediaStream>`                  | microphone | Supplies the stream to record instead of the microphone, e.g. microphone mixed with screen audio for meetings. Called on every start. The recorder never stops this stream's tracks; the caller does |
-| `onRecordingPaused`   | `(interrupted: boolean) => void`              | `() => {}` | Callback once a pause is stored. `interrupted` is true when the system (a call, Siri) caused it |
-| `onRecordingResumed`  | `() => void`                                  | `() => {}` | Callback when a paused recording continues |
-| `pauseMode`           | `"auto" \| "release" \| "keep"`               | `"auto"`   | What a pause does with the devices, see [Pause and resume](#pause-and-resume) |
-| `autoPauseOnInterruption` | `boolean`                                 | iOS only   | Pause instead of recording silence when the system takes the microphone away (phone call, Siri) |
-| `sessionSource`       | `string`                                      | –          | Free-form tag stored with the session, e.g. to tell which recorder should resume it |
+| Property                  | Type                                          | Default    | Description                                                                                                                                                                                          |
+| ------------------------- | --------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onRecordingStarted`      | `(stream: MediaStream) => void`               | `() => {}` | Callback when recording starts, providing the MediaStream                                                                                                                                            |
+| `onRecordingStopped`      | `(audioBlob: Blob, audioUrl: string) => void` | `() => {}` | Callback when recording stops with the audio data                                                                                                                                                    |
+| `onError`                 | `(error: string) => void`                     | `() => {}` | Callback when an error occurs during recording                                                                                                                                                       |
+| `storeToDbInterval`       | `number`                                      | `30`       | Interval in seconds to store audio chunks to IndexedDB                                                                                                                                               |
+| `onStore`                 | `(mp3Blob: Blob) => void \| Promise<void>`    | `() => {}` | Callback when an MP3 chunk is created during recording (fires every `storeToDbInterval` seconds)                                                                                                     |
+| `logger`                  | `(msg: string) => void`                       | `() => {}` | Custom logging function for debugging                                                                                                                                                                |
+| `disableDefaultStore`     | `boolean`                                     | `false`    | Disable the default IndexedDB storage. Useful when you want to handle storage yourself via the `onStore` callback                                                                                    |
+| `getStream`               | `() => Promise<MediaStream>`                  | microphone | Supplies the stream to record instead of the microphone, e.g. microphone mixed with screen audio for meetings. Called on every start. The recorder never stops this stream's tracks; the caller does |
+| `onRecordingPaused`       | `(interrupted: boolean) => void`              | `() => {}` | Callback once a pause is stored. `interrupted` is true when the system (a call, Siri) caused it                                                                                                      |
+| `onRecordingResumed`      | `() => void`                                  | `() => {}` | Callback when a paused recording continues                                                                                                                                                           |
+| `pauseMode`               | `"auto" \| "release" \| "keep"`               | `"auto"`   | What a pause does with the devices, see [Pause and resume](#pause-and-resume)                                                                                                                        |
+| `autoPauseOnInterruption` | `boolean`                                     | iOS only   | Pause instead of recording silence when the system takes the microphone away (phone call, Siri)                                                                                                      |
+| `sessionSource`           | `string`                                      | –          | Free-form tag stored with the session, e.g. to tell which recorder should resume it                                                                                                                  |
 
 `onRecordingStarted` fires whenever recording starts on fresh devices: on start, on `resumeSession`, and on a resume that had to reopen the devices.
 
@@ -168,12 +168,14 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 What happens to the devices while paused depends on `pauseMode`:
 
-| Mode      | Devices while paused | Resume | Used by `auto` |
-| --------- | -------------------- | ------ | -------------- |
-| `release` | Closed: the browser's recording indicator goes off | Opens the devices again, which may show a permission prompt | Desktop and Android browsers |
-| `keep`    | Kept open, the audio is dropped | Instant, never prompts. Devices that stopped working are replaced | iOS (WebKit repeats permission prompts), and any `getStream` recording (asking for a screen share again always shows the picker) |
+| Mode      | Devices while paused                               | Resume                                                                                                                                                                                          | Used by `auto`                                                                                                                   |
+| --------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `release` | Closed: the browser's recording indicator goes off | Opens the devices again, which may show a permission prompt                                                                                                                                     | Desktop and Android browsers                                                                                                     |
+| `keep`    | Kept open, the audio is dropped                    | Instant and without a prompt while the kept devices still work. Devices that stopped working (e.g. a screen share ended during the pause) are opened again, which can prompt or show the picker | iOS (WebKit repeats permission prompts), and any `getStream` recording (asking for a screen share again always shows the picker) |
 
-A stored session that no page is recording is resumable with `resumeSession(sessionId)`: one paused earlier, or one cut off by a crash or a closed tab. New audio is appended to it and `recordingTime` continues from the stored duration. Which page records a session is tracked with the Web Locks API, so other tabs neither list it nor resume it.
+A stored session that no page is recording is resumable with `resumeSession(sessionId)`: one paused earlier, or one cut off by a crash or a closed tab. New audio is appended to it and `recordingTime` continues from the stored duration. Which page records a session is tracked with the Web Locks API, so other tabs neither list it, resume it nor delete it. Without the Web Locks API (insecure contexts, very old browsers) there is no such coordination: another tab could list or resume a session that is still being recorded.
+
+Stored sessions are still subject to the cleanup of `useAudioSessions` (by default older than 7 days or beyond the 10 newest, see `deleteOldSessionsDaysInterval` and `maxSessionsToKeep`), paused ones included. Raise those limits if paused recordings should be kept longer.
 
 The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any. `useAudioSessions()` offers the same as `pausedRecording`, plus `refresh()` and `markAsStopped(id)` for a paused recording that was handed on (e.g. for processing) and should no longer count as paused.
 
@@ -255,16 +257,16 @@ The main recording component with start/stop controls and audio visualization.
 
 #### Props
 
-| Property            | Type                    | Default     | Description                                                                      |
-| ------------------- | ----------------------- | ----------- | -------------------------------------------------------------------------------- |
-| `showResult`        | `boolean`               | `true`      | Whether to show the playback section after recording is complete                 |
-| `autoStart`         | `boolean`               | `false`     | Automatically start recording when the component is mounted                      |
-| `storeToDbInterval` | `number`                | `5`         | Interval in seconds to store audio chunks to IndexedDB (e.g., 30 for 30 seconds) |
-| `logger`            | `(msg: string) => void` | `undefined` | Optional custom logging function for debugging                                   |
-| `allowPause`        | `boolean`               | `true`      | Shows the pause button                                                           |
-| `pauseMode`         | `"auto" \| "release" \| "keep"` | `"auto"` | What a pause does with the devices, see [Pause and resume](#pause-and-resume) |
-| `resumeSessionId`   | `string`                | `undefined` | A stored session to continue instead of starting a new one                      |
-| `sessionSource`     | `string`                | `undefined` | Free-form tag stored with new sessions                                           |
+| Property            | Type                            | Default     | Description                                                                      |
+| ------------------- | ------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `showResult`        | `boolean`                       | `true`      | Whether to show the playback section after recording is complete                 |
+| `autoStart`         | `boolean`                       | `false`     | Automatically start recording when the component is mounted                      |
+| `storeToDbInterval` | `number`                        | `5`         | Interval in seconds to store audio chunks to IndexedDB (e.g., 30 for 30 seconds) |
+| `logger`            | `(msg: string) => void`         | `undefined` | Optional custom logging function for debugging                                   |
+| `allowPause`        | `boolean`                       | `true`      | Shows the pause button                                                           |
+| `pauseMode`         | `"auto" \| "release" \| "keep"` | `"auto"`    | What a pause does with the devices, see [Pause and resume](#pause-and-resume)    |
+| `resumeSessionId`   | `string`                        | `undefined` | A stored session to continue instead of starting a new one                       |
+| `sessionSource`     | `string`                        | `undefined` | Free-form tag stored with new sessions                                           |
 
 #### Events
 
@@ -279,24 +281,24 @@ The main recording component with start/stop controls and audio visualization.
 
 The component exposes the following methods and reactive properties via template refs:
 
-| Property/Method          | Type                   | Description                                                                                                                    |
-| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `isRecording`            | `Ref<boolean>`         | Reactive boolean indicating if recording is in progress                                                                        |
-| `isStarting`             | `Ref<boolean>`         | True while the recording starts (devices, permission prompt)                                                                   |
-| `isProcessing`           | `Ref<boolean>`         | True while a stopped recording is being finished                                                                               |
-| `isBusy`                 | `ComputedRef<boolean>` | Starting, recording or finishing: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open  |
-| `startRecording`         | `() => Promise<void>`  | Method to start audio recording                                                                                                |
-| `isPaused`               | `Ref<boolean>`         | True while the recording is paused                                                                                             |
-| `isSavingPause`          | `Ref<boolean>`         | True while a pause is still being stored                                                                                       |
-| `wasInterrupted`         | `Ref<boolean>`         | The current pause was caused by the system (call, Siri)                                                                        |
-| `pauseRecording`         | `() => Promise<void>`  | Pauses and stores everything recorded so far                                                                                   |
-| `resumeRecording`        | `() => Promise<void>`  | Continues a paused recording                                                                                                   |
-| `resumeSession`          | `(id: string) => Promise<void>` | Continues a stored (paused or interrupted) session                                                                    |
-| `stopRecording`          | `() => Promise<void>`  | Stops the recording. Cancels a start still in progress, does nothing without a recording, and joins a stop already in progress |
-| `recordingTime`          | `Ref<number>`          | Recording time in seconds                                                                                                      |
-| `formattedRecordingTime` | `ComputedRef<string>`  | Formatted recording time as "MM:SS"                                                                                            |
-| `error`                  | `Ref<string \| null>`  | Current error message, if any                                                                                                  |
-| `audioUrl`               | `Ref<string \| null>`  | URL of the recorded audio blob                                                                                                 |
+| Property/Method          | Type                            | Description                                                                                                                    |
+| ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `isRecording`            | `Ref<boolean>`                  | Reactive boolean indicating if recording is in progress                                                                        |
+| `isStarting`             | `Ref<boolean>`                  | True while the recording starts (devices, permission prompt)                                                                   |
+| `isProcessing`           | `Ref<boolean>`                  | True while a stopped recording is being finished                                                                               |
+| `isBusy`                 | `ComputedRef<boolean>`          | Starting, recording or finishing: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open  |
+| `startRecording`         | `() => Promise<void>`           | Method to start audio recording                                                                                                |
+| `isPaused`               | `Ref<boolean>`                  | True while the recording is paused                                                                                             |
+| `isSavingPause`          | `Ref<boolean>`                  | True while a pause is still being stored                                                                                       |
+| `wasInterrupted`         | `Ref<boolean>`                  | The current pause was caused by the system (call, Siri)                                                                        |
+| `pauseRecording`         | `() => Promise<void>`           | Pauses and stores everything recorded so far                                                                                   |
+| `resumeRecording`        | `() => Promise<void>`           | Continues a paused recording                                                                                                   |
+| `resumeSession`          | `(id: string) => Promise<void>` | Continues a stored (paused or interrupted) session                                                                             |
+| `stopRecording`          | `() => Promise<void>`           | Stops the recording. Cancels a start still in progress, does nothing without a recording, and joins a stop already in progress |
+| `recordingTime`          | `Ref<number>`                   | Recording time in seconds                                                                                                      |
+| `formattedRecordingTime` | `ComputedRef<string>`           | Formatted recording time as "MM:SS"                                                                                            |
+| `error`                  | `Ref<string \| null>`           | Current error message, if any                                                                                                  |
+| `audioUrl`               | `Ref<string \| null>`           | URL of the recorded audio blob                                                                                                 |
 
 #### Usage with Template Ref
 

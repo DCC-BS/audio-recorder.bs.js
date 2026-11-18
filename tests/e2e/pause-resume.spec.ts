@@ -41,13 +41,20 @@ test.describe("Pause and resume", () => {
             timeout: 20000,
         });
 
-        // the delivered recording is not left behind
+        // the delivered recording is not left behind; wait for the cleanup
+        // to finish, a reload would cut it off
+        await expect
+            .poll(() => countStored(page, "audioSessions"), { timeout: 15_000 })
+            .toBe(0);
         await page.reload();
         await expect(page.getByText(audio.startRecording)).toBeVisible();
         await expect(page.locator(".session-status")).toHaveCount(0);
     });
 
     test("continues a paused recording after a reload", async ({ page }) => {
+        // two ffmpeg-bound steps (first chunk, final join) plus a recorded
+        // stretch after the reload do not fit the default 30s
+        test.setTimeout(90_000);
         await page.goto("/");
         await page.getByRole("button", { name: audio.startRecording }).click();
         await expect.poll(() => shownSeconds(page)).toBeGreaterThanOrEqual(2);
@@ -71,6 +78,10 @@ test.describe("Pause and resume", () => {
         await expect(page.getByText(audio.recordingInProgress)).toBeVisible();
         // the clock carries on from the stored audio
         expect(await shownSeconds(page)).toBeGreaterThanOrEqual(atPause - 1);
+        // record a known stretch after the reload
+        await expect
+            .poll(() => shownSeconds(page))
+            .toBeGreaterThanOrEqual(atPause + 3);
 
         await page.getByRole("button", { name: audio.stopRecording }).click();
         await expect(page.getByText(audio.recordingComplete)).toBeVisible({
@@ -85,8 +96,9 @@ test.describe("Pause and resume", () => {
                     );
                 }),
         );
-        // both parts are in the result
-        expect(duration).toBeGreaterThanOrEqual(atPause);
+        // both parts are in the result: the stretch after the reload too,
+        // with a second of slack for clock rounding and encoding
+        expect(duration).toBeGreaterThanOrEqual(atPause + 2);
     });
 
     test("lists an interrupted recording as resumable", async ({ page }) => {
@@ -115,21 +127,34 @@ test.describe("Pause and resume", () => {
  * @param page - The page under test.
  */
 function countStoredChunks(page: Page): Promise<number> {
+    return countStored(page, "audioChunks");
+}
+
+/**
+ * Counts the records in one of the recorder's IndexedDB tables.
+ *
+ * @param page - The page under test.
+ * @param table - The object store to count.
+ */
+function countStored(
+    page: Page,
+    table: "audioChunks" | "audioSessions",
+): Promise<number> {
     return page.evaluate(
-        () =>
+        (table) =>
             new Promise<number>((resolve, reject) => {
                 const open = indexedDB.open("AudioRecorderDB");
                 open.onerror = () => reject(open.error);
                 open.onsuccess = () => {
                     const db = open.result;
-                    if (!db.objectStoreNames.contains("audioChunks")) {
+                    if (!db.objectStoreNames.contains(table)) {
                         db.close();
                         resolve(0);
                         return;
                     }
                     const count = db
-                        .transaction("audioChunks")
-                        .objectStore("audioChunks")
+                        .transaction(table)
+                        .objectStore(table)
                         .count();
                     count.onsuccess = () => {
                         db.close();
@@ -138,5 +163,6 @@ function countStoredChunks(page: Page): Promise<number> {
                     count.onerror = () => reject(count.error);
                 };
             }),
+        table,
     );
 }

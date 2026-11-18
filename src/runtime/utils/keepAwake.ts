@@ -6,6 +6,8 @@ export class KeepAwake {
     private silentAudio: HTMLAudioElement | null = null;
     private logger: (msg: string) => void;
     private isActive = false;
+    /** Bumped on every start and stop, so late wake-lock grants are recognised. */
+    private generation = 0;
 
     constructor(logger: (msg: string) => void = () => {}) {
         this.logger = logger;
@@ -22,7 +24,15 @@ export class KeepAwake {
         }
 
         try {
-            this.wakeLock = await navigator.wakeLock.request("screen");
+            const generation = this.generation;
+            const sentinel = await navigator.wakeLock.request("screen");
+            // stopped (or restarted) while the request was pending: this
+            // grant belongs to nobody and must not keep the screen on
+            if (!this.isActive || generation !== this.generation) {
+                sentinel.release().catch(() => {});
+                return;
+            }
+            this.wakeLock = sentinel;
             this.logger("Wake lock acquired");
 
             this.wakeLock.addEventListener("release", () => {
@@ -71,6 +81,7 @@ export class KeepAwake {
         }
 
         this.isActive = true;
+        this.generation++;
 
         this.startSilentAudio();
 
@@ -79,6 +90,7 @@ export class KeepAwake {
 
     stop(): void {
         this.isActive = false;
+        this.generation++;
 
         this.releaseWakeLock();
         this.stopSilentAudio();

@@ -39,7 +39,8 @@ onMounted(async () => {
 async function deleteSession(sessionId: string): Promise<void> {
     deletingSessionId.value = sessionId;
     try {
-        await audioStorage.deleteSession(sessionId);
+        // the list may be stale: another tab may be recording it by now
+        await audioStorage.deleteStoredSession(sessionId);
         sessions.value = sessions.value.filter((s) => s.id !== sessionId);
     } catch (error) {
         console.error("Failed to delete session:", error);

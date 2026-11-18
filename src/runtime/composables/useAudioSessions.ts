@@ -101,7 +101,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     }
 
     async function deleteAbandonedRecording(sessionId: string): Promise<void> {
-        await audioStorage.deleteSession(sessionId);
+        await audioStorage.deleteStoredSession(sessionId);
 
         if (abandonedRecording.value) {
             abandonedRecording.value = abandonedRecording.value.filter(

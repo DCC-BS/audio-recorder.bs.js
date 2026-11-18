@@ -99,14 +99,19 @@ export class AudioStorageService {
         sessionId: string,
         status: AudioSessionStatus,
     ): Promise<void> {
-        const changes: Partial<AudioSession> = { status };
-        if (status === "paused") {
-            changes.pausedAt = new Date().toISOString();
-        }
-        const updated = await db.audioSessions.update(sessionId, changes);
-        if (updated === 0) {
-            throw new Error(`Session with ID ${sessionId} not found`);
-        }
+        await db.transaction("rw", db.audioSessions, async () => {
+            const session = await db.audioSessions.get(sessionId);
+            if (!session) {
+                throw new Error(`Session with ID ${sessionId} not found`);
+            }
+            const changes: Partial<AudioSession> = { status };
+            // stamped only when it becomes paused: writing the status again
+            // (e.g. on unmount) must not make an old pause look newer
+            if (status === "paused" && session.status !== "paused") {
+                changes.pausedAt = new Date().toISOString();
+            }
+            await db.audioSessions.update(sessionId, changes);
+        });
     }
 
     /**
@@ -138,13 +143,41 @@ export class AudioStorageService {
             )[0];
     }
 
+    /**
+     * The session's audio chunks in recording order.
+     *
+     * The order is the session's `chunkIds`, read in the same transaction
+     * as the chunks: chunk ids start with a timestamp, and a clock set back
+     * during a pause would otherwise sort later chunks first.
+     *
+     * @param sessionId - The session to read.
+     */
     public async getSessionChunks(sessionId: string): Promise<ArrayBuffer[]> {
-        const chunks = await db.audioChunks
-            .where("sessionId")
-            .equals(sessionId)
-            .toArray();
-
-        return chunks.map((c) => c.buffer);
+        return db.transaction(
+            "r",
+            db.audioChunks,
+            db.audioSessions,
+            async () => {
+                const [session, chunks] = await Promise.all([
+                    db.audioSessions.get(sessionId),
+                    db.audioChunks
+                        .where("sessionId")
+                        .equals(sessionId)
+                        .toArray(),
+                ]);
+                const order = session?.chunkIds ?? [];
+                // rows written before chunkIds was kept have no order: fall
+                // back to the index order they always used
+                if (order.length !== chunks.length) {
+                    return chunks.map((c) => c.buffer);
+                }
+                const byId = new Map(chunks.map((c) => [c.id, c.buffer]));
+                return order.flatMap((id) => {
+                    const buffer = byId.get(id);
+                    return buffer ? [buffer] : [];
+                });
+            },
+        );
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {
@@ -197,6 +230,23 @@ export class AudioStorageService {
             await this.setSessionStatus(sessionId, "stopped");
         } finally {
             release();
+        }
+    }
+
+    /**
+     * Deletes a session on the user's request, e.g. from a list of stored
+     * recordings. A list can be stale: the session may have been resumed
+     * in another tab since, so it is only deleted when no recorder owns it.
+     * A recorder deleting its own session uses `deleteSession`.
+     *
+     * @param sessionId - The session to delete.
+     * @throws Error when another page is recording the session.
+     */
+    public async deleteStoredSession(sessionId: string): Promise<void> {
+        if (!(await this.deleteUnownedSession(sessionId))) {
+            throw new Error(
+                `Session with ID ${sessionId} is being recorded elsewhere`,
+            );
         }
     }
 
