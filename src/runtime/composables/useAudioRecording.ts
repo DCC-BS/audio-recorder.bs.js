@@ -673,7 +673,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             isPaused.value = false;
             wasInterrupted.value = false;
             isRecording.value = true;
-            opt.onRecordingResumed();
         } catch (e) {
             if (!(e instanceof StartCancelled)) {
                 console.error(e);
@@ -694,14 +693,21 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 pcmRecorder &&
                 (disposed ||
                     e instanceof StartCancelled ||
+                    pauseMode === "release" ||
                     !pcmRecorder.isHealthy)
             ) {
                 await releaseRecorder();
             } else {
                 pcmRecorder?.pause();
             }
+            return;
         } finally {
             isStarting.value = false;
+        }
+        try {
+            opt.onRecordingResumed();
+        } catch (e) {
+            opt.logger(`onRecordingResumed failed: ${e}`);
         }
     }
 

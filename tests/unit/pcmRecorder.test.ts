@@ -100,9 +100,8 @@ describe("PCMRecorder pause and resume", () => {
 
             const resuming = recorder.resume();
             await vi.advanceTimersByTimeAsync(600);
-            await resuming;
-
             expect(port.postMessage).toHaveBeenCalledWith({ type: "resume" });
+            await resuming;
         } finally {
             vi.useRealTimers();
         }
