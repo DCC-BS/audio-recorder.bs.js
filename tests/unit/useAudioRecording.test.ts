@@ -692,6 +692,8 @@ describe("useAudioRecording review fixes", () => {
         storage.setSessionStatus.mockClear();
 
         app.unmount();
+        // the resume's status write is in flight: the lock stays held
+        expect(releaseLock).not.toHaveBeenCalled();
         statusWritten();
         await resuming;
         // unmount writes its status a few ticks after the resume settles
@@ -700,9 +702,11 @@ describe("useAudioRecording review fixes", () => {
         // one write, from unmount after the resume settled; no rollback
         // racing it once the session lock is released
         expect(storage.setSessionStatus).toHaveBeenCalledOnce();
+        // it never recorded again, so it keeps its original pause time
         expect(storage.setSessionStatus).toHaveBeenCalledWith(
             "session-1",
             "paused",
+            true,
         );
         expect(first.stop).toHaveBeenCalled();
     });

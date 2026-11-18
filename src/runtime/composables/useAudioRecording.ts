@@ -219,7 +219,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
         // still opening devices (a picker may stay open indefinitely): the
         // start writes nothing once cancelled, so the session is free now
-        if (isStarting.value && !startWriting) {
+        // (an in-place resume of a paused recording is handled below)
+        if (isStarting.value && !isPaused.value && !startWriting) {
             releaseOwnership();
         }
 
@@ -239,7 +240,10 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         if ((isRecording.value || isPaused.value) && sessionId) {
             // keep what was recorded since the last store and leave the
             // session paused, ready to be resumed
-            const stored = isRecording.value ? appendMp3() : appendQueue;
+            // only a running recording pauses now; an already paused one
+            // (e.g. its resume was cut short) keeps its pause time
+            const wasRecording = isRecording.value;
+            const stored = wasRecording ? appendMp3() : appendQueue;
             isRecording.value = false;
             const paused = pausing.writesSettled();
             void releaseRecorder();
@@ -251,6 +255,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                     audioStorage.setSessionStatus(
                         sessionId,
                         pausing.storedStatus(),
+                        !wasRecording,
                     ),
                 )
                 .catch(() => {})
