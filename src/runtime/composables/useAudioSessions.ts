@@ -88,6 +88,18 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         return mp3Blob;
     }
 
+    /**
+     * Ends a stored recording without deleting it: it can no longer count
+     * as paused, but stays available as a backup until the usual cleanup.
+     * Use it once a paused recording was handed on, e.g. for processing.
+     *
+     * @param sessionId - The stored recording.
+     */
+    async function markAsStopped(sessionId: string): Promise<void> {
+        await audioStorage.setSessionStatus(sessionId, "stopped");
+        await refresh();
+    }
+
     async function deleteAbandonedRecording(sessionId: string): Promise<void> {
         await audioStorage.deleteSession(sessionId);
 
@@ -103,6 +115,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         abandonedRecording,
         pausedRecording,
         refresh,
+        markAsStopped,
         getMp3Blob,
         deleteAbandonedRecording,
     };

@@ -175,7 +175,7 @@ What happens to the devices while paused depends on `pauseMode`:
 
 A stored session that no page is recording is resumable with `resumeSession(sessionId)`: one paused earlier, or one cut off by a crash or a closed tab. New audio is appended to it and `recordingTime` continues from the stored duration. Which page records a session is tracked with the Web Locks API, so other tabs neither list it nor resume it.
 
-The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any.
+The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any. `useAudioSessions()` offers the same as `pausedRecording`, plus `refresh()` and `markAsStopped(id)` for a paused recording that was handed on (e.g. for processing) and should no longer count as paused.
 
 #### Example
 
