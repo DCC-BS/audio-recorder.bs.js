@@ -75,8 +75,9 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
             loadFailed.value = true;
             throw e;
         }
-        loadFailed.value = false;
+        // an older read must not clear the failure of a newer one
         if (current === generation) {
+            loadFailed.value = false;
             abandonedRecording.value = sessions;
             isReady.value = true;
         }
