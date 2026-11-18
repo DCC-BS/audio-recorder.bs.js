@@ -4,6 +4,7 @@ import {
     type AudioSessionStatus,
     db,
     newestPaused,
+    reopenIfFailed,
 } from "./db";
 
 /** Another page is recording the session. */
@@ -30,6 +31,7 @@ export class AudioStorageService {
         const id = this.generateId();
         const now = new Date(Date.now()).toISOString();
 
+        await reopenIfFailed();
         await db.audioSessions.add({
             id,
             name,
@@ -186,6 +188,7 @@ export class AudioStorageService {
     }
 
     public async getAllSessions(): Promise<AudioSession[]> {
+        await reopenIfFailed();
         const sessions = await db.audioSessions
             .where("chunkCount")
             .aboveOrEqual(1)
