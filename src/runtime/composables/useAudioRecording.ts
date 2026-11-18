@@ -6,18 +6,20 @@ import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
 } from "../utils/microphone";
+import {
+    createPauseResume,
+    InputUnavailable,
+    type PauseMode,
+    resolvePauseMode,
+    StartCancelled,
+} from "../utils/pauseResume";
 import { toPcmData } from "../utils/pcm";
 import { type PCMRecorder, startPcmRecorder } from "../utils/pcmRecorder";
 import { isIOS } from "../utils/platform";
 import { acquireSessionLock } from "../utils/sessionLock";
 import { useFFmpeg } from "./useFFmpeg";
 
-/**
- * What a pause does with the devices: `release` closes them (resume may
- * prompt again), `keep` keeps them open (resume is instant), `auto` keeps
- * them on iOS and for `getStream`, releases them elsewhere.
- */
-export type PauseMode = "auto" | "release" | "keep";
+export type { PauseMode } from "../utils/pauseResume";
 
 /**
  * Options for audio recording
@@ -50,12 +52,6 @@ export type RecordingOptions = {
     autoPauseOnInterruption?: boolean;
     sessionSource?: string;
 };
-
-/** Aborts a start whose owner unmounted while it was still starting. */
-class StartCancelled extends Error {}
-
-/** Freshly opened devices that already deliver no audio. */
-class InputUnavailable extends Error {}
 
 const optionsDefault: Required<
     Omit<
@@ -112,12 +108,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     const { t } = useI18n();
     const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
 
-    const pauseMode: Exclude<PauseMode, "auto"> =
-        opt.pauseMode === "auto"
-            ? opt.getStream || isIOS()
-                ? "keep"
-                : "release"
-            : opt.pauseMode;
+    const pauseMode = resolvePauseMode(opt.pauseMode, Boolean(opt.getStream));
     const autoPauseOnInterruption = opt.autoPauseOnInterruption ?? isIOS();
 
     /** Capturing audio right now. */
@@ -125,8 +116,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     /** Between the start request and the first sample: devices, permission prompt, session. Also set while resuming. */
     const isStarting = ref(false);
     const isProcessing = ref(false);
-    /** Paused; everything recorded so far is stored. */
-    const isPaused = ref(false);
     /**
      * Starting, recording, finishing or storing a pause: audio would be lost
      * if the page went away now. A stored pause is not busy.
@@ -139,12 +128,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             isSavingPause.value,
     );
     const wasSuspended = ref(false);
-    /** Paused, but the audio up to the pause is still being stored. */
-    const isSavingPause = ref(false);
-    /** The current pause could not be stored completely; leaving is not safe. */
-    const pauseSaveFailed = ref(false);
-    /** The current pause was caused by the system (a call, Siri), not the user. */
-    const wasInterrupted = ref(false);
     /** Seconds recorded in this session, pauses not counted. */
     const recordingTime = ref(0);
 
@@ -154,6 +137,36 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
     const audioStorage = new AudioStorageService();
     const currentSession = ref<string>();
+
+    const pausing = createPauseResume({
+        mode: pauseMode,
+        storeEnabled: !opt.disableDefaultStore,
+        audioStorage,
+        currentSession,
+        isRecording,
+        isStarting,
+        error,
+        t,
+        logger: opt.logger,
+        onPaused: (interrupted) => opt.onRecordingPaused(interrupted),
+        onResumed: () => opt.onRecordingResumed(),
+        onStarted: (stream) => opt.onRecordingStarted(stream),
+        fail,
+        deviceError,
+        recorder: () => pcmRecorder,
+        openRecorder,
+        releaseRecorder,
+        appendMp3,
+        chunkFailed: () => chunkFailed,
+        isStopping: () => Boolean(pendingStop),
+        beginStart: () => {
+            startCancelled = false;
+        },
+        ensureNotDisposed,
+        isDisposed: () => disposed,
+    });
+    const { isPaused, isSavingPause, pauseSaveFailed, wasInterrupted } =
+        pausing;
 
     let pcmRecorder: PCMRecorder | undefined;
 
@@ -179,8 +192,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     let startCancelled = false;
     // the stop in progress; a second stop joins it instead of finishing twice
     let pendingStop: Promise<void> | undefined;
-    // the pause in progress; stop and resume wait for it
-    let pendingPause: Promise<void> | undefined;
 
     onUnmounted(() => {
         disposed = true;
@@ -200,7 +211,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             // session paused, ready to be resumed
             const stored = isRecording.value ? appendMp3() : appendQueue;
             isRecording.value = false;
-            const paused = pendingPause ?? Promise.resolve();
+            const paused = pausing.settled();
             void releaseRecorder();
             Promise.all([stored, paused])
                 .catch(() => {})
@@ -434,7 +445,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             recorder.setOnInterrupted(() => {
                 if (isRecording.value && pcmRecorder === recorder) {
                     opt.logger("Pausing: the system interrupted the recording");
-                    void pause(true);
+                    void pausing.pause(true);
                 }
             });
         }
@@ -549,181 +560,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
     /** Stores everything recorded so far, then pauses (see `pauseMode`). */
     function pauseRecording(): Promise<void> {
-        return pause(false);
-    }
-
-    function pause(interrupted: boolean): Promise<void> {
-        if (pendingPause) {
-            return pendingPause;
-        }
-        if (!isRecording.value) {
-            return Promise.resolve();
-        }
-
-        pendingPause = doPause(interrupted).finally(() => {
-            pendingPause = undefined;
-        });
-        return pendingPause;
-    }
-
-    async function doPause(interrupted: boolean): Promise<void> {
-        isRecording.value = false;
-        isPaused.value = true;
-        isSavingPause.value = true;
-        pauseSaveFailed.value = false;
-        wasInterrupted.value = interrupted;
-
-        const sessionId = currentSession.value;
-        // marked right away: the encoding below can take a while, and a
-        // page closed meanwhile should still leave a paused session
-        const marked: Promise<boolean> =
-            sessionId && !opt.disableDefaultStore
-                ? audioStorage.setSessionStatus(sessionId, "paused").then(
-                      () => true,
-                      (e) => {
-                          opt.logger(`Storing the pause failed: ${e}`);
-                          return false;
-                      },
-                  )
-                : Promise.resolve(true);
-
-        const stored = appendMp3();
-        if (pauseMode === "release") {
-            await releaseRecorder();
-        } else {
-            // resume replaces the devices if they stopped working
-            pcmRecorder?.pause();
-        }
-
-        try {
-            await stored;
-        } catch {
-            // recorded in chunkFailed, checked below
-        }
-        const statusStored = await marked;
-        isSavingPause.value = false;
-
-        // without the paused status the session still shows up as
-        // interrupted, so what was stored stays recoverable
-        if (chunkFailed || !statusStored) {
-            // incomplete audio must not pass as a saved pause after a reload;
-            // as an interrupted session it stays recoverable
-            if (chunkFailed && statusStored && sessionId) {
-                await audioStorage
-                    .setSessionStatus(sessionId, "recording")
-                    .catch(() => {});
-            }
-            pauseSaveFailed.value = true;
-            fail(t("audio-recorder.audio.errors.pauseNotSaved"));
-            return;
-        }
-
-        opt.onRecordingPaused(interrupted);
-    }
-
-    /**
-     * Continues a paused recording. Opens the devices again when they were
-     * released (which may show a permission prompt); a failure is reported
-     * through `error` and the recording stays paused.
-     */
-    async function resumeRecording(): Promise<void> {
-        if (pendingPause) {
-            await pendingPause;
-        }
-        if (!isPaused.value || isStarting.value || pendingStop) {
-            return;
-        }
-
-        isStarting.value = true;
-        startCancelled = false;
-        error.value = "";
-        // lets a cancel or failure put the session back to paused
-        let statusChanged = false;
-        try {
-            let resumed = false;
-            if (pcmRecorder?.isHealthy) {
-                try {
-                    await pcmRecorder.resume();
-                    resumed = true;
-                } catch (e) {
-                    opt.logger(`Kept devices could not resume: ${e}`);
-                }
-            }
-            if (!resumed) {
-                await reopenRecorder();
-            }
-            ensureNotDisposed();
-
-            if (currentSession.value && !opt.disableDefaultStore) {
-                await audioStorage.setSessionStatus(
-                    currentSession.value,
-                    "recording",
-                );
-                statusChanged = true;
-            }
-            // unmounted or stopped while the status was written
-            ensureNotDisposed();
-
-            // an interruption during the awaits above went unnoticed
-            if (!pcmRecorder?.isHealthy) {
-                await reopenRecorder();
-                ensureNotDisposed();
-            }
-
-            isPaused.value = false;
-            wasInterrupted.value = false;
-            isRecording.value = true;
-        } catch (e) {
-            if (!(e instanceof StartCancelled)) {
-                console.error(e);
-                fail(
-                    e instanceof InputUnavailable
-                        ? (e as Error).message
-                        : deviceError(e),
-                );
-            }
-            if (statusChanged && currentSession.value) {
-                await audioStorage
-                    .setSessionStatus(currentSession.value, "paused")
-                    .catch(() => {});
-            }
-            // stays paused. A recorder opened half way is of no use, and
-            // after a cancel nobody would ever close it
-            if (
-                pcmRecorder &&
-                (disposed ||
-                    e instanceof StartCancelled ||
-                    pauseMode === "release" ||
-                    !pcmRecorder.isHealthy)
-            ) {
-                await releaseRecorder();
-            } else {
-                pcmRecorder?.pause();
-            }
-            return;
-        } finally {
-            isStarting.value = false;
-        }
-        try {
-            opt.onRecordingResumed();
-        } catch (e) {
-            opt.logger(`onRecordingResumed failed: ${e}`);
-        }
-    }
-
-    /** Opens fresh devices; throws if their input is already unusable. */
-    async function reopenRecorder(): Promise<void> {
-        await releaseRecorder();
-        const recorder = await openRecorder();
-        ensureNotDisposed();
-        // its input may already be taken away again (a call still going
-        // on); recording would only capture silence
-        if (!recorder.isHealthy) {
-            throw new InputUnavailable(
-                t("audio-recorder.audio.errors.inputUnavailable"),
-            );
-        }
-        opt.onRecordingStarted(recorder.stream);
+        return pausing.pause(false);
     }
 
     /**
@@ -752,7 +589,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             return Promise.resolve();
         }
 
-        pendingStop = (pendingPause ?? Promise.resolve())
+        pendingStop = pausing
+            .settled()
             .then(finishRecording)
             .finally(() => {
                 pendingStop = undefined;
@@ -882,9 +720,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         recordingTime.value = 0;
         chunkFailed = false;
         wasSuspended.value = false;
-        wasInterrupted.value = false;
-        isSavingPause.value = false;
-        pauseSaveFailed.value = false;
+        pausing.reset();
         pcmRecorder = undefined;
     }
 
@@ -899,7 +735,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         recordingTime,
         startRecording,
         pauseRecording,
-        resumeRecording,
+        resumeRecording: pausing.resume,
         resumeSession,
         stopRecording,
         audioBlob,
