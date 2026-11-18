@@ -93,9 +93,14 @@ export class AudioStorageService {
         return db.audioSessions.get(sessionId);
     }
 
+    /**
+     * @param keepPausedAt - A rollback to an earlier pause: keep its time
+     *   instead of stamping a new one.
+     */
     public async setSessionStatus(
         sessionId: string,
         status: AudioSessionStatus,
+        keepPausedAt = false,
     ): Promise<void> {
         await db.transaction("rw", db.audioSessions, async () => {
             const session = await db.audioSessions.get(sessionId);
@@ -104,7 +109,11 @@ export class AudioStorageService {
             }
             const changes: Partial<AudioSession> = { status };
             // only on the change, so a repeated write keeps the old time
-            if (status === "paused" && session.status !== "paused") {
+            if (
+                status === "paused" &&
+                session.status !== "paused" &&
+                !keepPausedAt
+            ) {
                 changes.pausedAt = new Date().toISOString();
             }
             await db.audioSessions.update(sessionId, changes);
@@ -255,19 +264,30 @@ export class AudioStorageService {
             );
         }
         try {
-            const session = await db.audioSessions.get(sessionId);
-            if (!session) {
-                throw new Error(`Session with ID ${sessionId} not found`);
-            }
-            if (
-                expectedChunkCount !== undefined &&
-                session.chunkCount !== expectedChunkCount
-            ) {
-                throw new SessionChanged(
-                    `Session with ID ${sessionId} got new audio meanwhile`,
-                );
-            }
-            await change();
+            // one transaction with the chunk stores: a chunk appended
+            // without the lock (no Web Locks) cannot land in between
+            await db.transaction(
+                "rw",
+                db.audioChunks,
+                db.audioSessions,
+                async () => {
+                    const session = await db.audioSessions.get(sessionId);
+                    if (!session) {
+                        throw new Error(
+                            `Session with ID ${sessionId} not found`,
+                        );
+                    }
+                    if (
+                        expectedChunkCount !== undefined &&
+                        session.chunkCount !== expectedChunkCount
+                    ) {
+                        throw new SessionChanged(
+                            `Session with ID ${sessionId} got new audio meanwhile`,
+                        );
+                    }
+                    await change();
+                },
+            );
         } finally {
             release();
         }

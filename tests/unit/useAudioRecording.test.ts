@@ -520,9 +520,11 @@ describe("useAudioRecording review fixes", () => {
 
         expect(r.isRecording.value).toBe(false);
         expect(r.isPaused.value).toBe(true);
+        // rolled back, keeping the original pause time
         expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
             "session-1",
             "paused",
+            true,
         );
     });
 
@@ -738,7 +740,7 @@ describe("useAudioRecording review fixes", () => {
         startPcmRecorder.mockResolvedValueOnce(first);
         storage.getSession.mockResolvedValueOnce({
             id: "stored",
-            status: "recording",
+            status: "paused",
         } as never);
         storage.setSessionStatus.mockImplementationOnce(async () => {
             first.isHealthy = false;
@@ -751,11 +753,11 @@ describe("useAudioRecording review fixes", () => {
         expect(r.error.value).toBe(
             "audio-recorder.audio.errors.inputUnavailable",
         );
-        // back to what it was: an interrupted session, not a saved pause
-        expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
-            "stored",
-            "recording",
-        );
+        // activated, then put back to what it was, keeping its pause time
+        expect(storage.setSessionStatus.mock.calls).toEqual([
+            ["stored", "recording"],
+            ["stored", "paused", true],
+        ]);
         expect(first.stop).toHaveBeenCalled();
     });
 
@@ -841,5 +843,34 @@ describe("useAudioRecording review fixes", () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(storage.setSessionStatus).not.toHaveBeenCalled();
         expect(first.stop).toHaveBeenCalled();
+    });
+
+    it("lets go of the session on unmount while a resume waits for devices", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        let r!: ReturnType<typeof useAudioRecording>;
+        const app = createApp(
+            defineComponent({
+                setup() {
+                    r = useAudioRecording({ pauseMode: "release" });
+                    return () => null;
+                },
+            }),
+        );
+        app.mount(document.createElement("div"));
+        await r.startRecording();
+        first.emit(1);
+        await r.pauseRecording();
+        // the devices (e.g. a screen picker) never answer
+        startPcmRecorder.mockImplementationOnce(() => new Promise(() => {}));
+        void r.resumeRecording();
+        await vi.waitFor(() =>
+            expect(startPcmRecorder).toHaveBeenCalledTimes(2),
+        );
+
+        app.unmount();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(releaseLock).toHaveBeenCalled();
     });
 });

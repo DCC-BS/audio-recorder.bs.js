@@ -181,7 +181,7 @@ Stored sessions are still subject to the cleanup of `useAudioSessions` (by defau
 
 The library allows several stored sessions; whether a new recording may start while one is paused is up to the app. `getPausedRecording()` returns the paused one, if any. `useAudioSessions()` offers the same as `pausedRecording`, plus `isReady` (read at least once), `loadFailed` (the last read failed; `refresh()` retries), `refresh()` and `markAsStopped(id, chunkCount)` for a paused recording that was handed on (e.g. for processing) and should no longer count as paused.
 
-Another tab may continue a session while this one exports it. `exportSession(id)` returns the MP3 together with the number of chunks in it; pass that count to `markAsStopped` or `deleteAbandonedRecording` and they refuse (`SessionChanged`) instead of stopping or deleting audio the export did not include. Both also refuse while another page records the session (`SessionInUse`). The `deleteSession` a custom action receives does this check on its own.
+Another tab may continue a session while this one exports it. `exportSession(id)` returns the MP3 together with the number of chunks in it; pass that count to `markAsStopped` or `deleteAbandonedRecording` and they refuse (`SessionChanged`) instead of stopping or deleting audio the export did not include. Both also refuse while another page records the session (`SessionInUse`); that refusal needs the Web Locks API, without it neither is raised for a live recorder in another tab. The chunk-count check itself runs in one IndexedDB transaction with the change, so `SessionChanged` holds either way. The `deleteSession` a custom action receives does this check on its own.
 
 #### Example
 

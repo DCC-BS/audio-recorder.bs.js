@@ -40,10 +40,14 @@ async function downloadAudio(id: string) {
     }
 
     // refuses if another tab added audio after the export: it stays listed
-    await deleteAbandonedRecording(id, chunkCount).catch((e) => {
+    try {
+        await deleteAbandonedRecording(id, chunkCount);
+    } catch (e) {
         console.warn("Recording kept:", e);
-        refresh();
-    });
+        await refresh().catch((err) => {
+            console.warn("Refreshing the list failed:", err);
+        });
+    }
 }
 </script>
 

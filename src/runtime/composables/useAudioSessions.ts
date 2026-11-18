@@ -72,7 +72,9 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         try {
             sessions = await audioStorage.getResumableSessions();
         } catch (e) {
-            loadFailed.value = true;
+            if (current === generation) {
+                loadFailed.value = true;
+            }
             throw e;
         }
         // an older read must not clear the failure of a newer one
@@ -123,6 +125,9 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
             abandonedRecording.value = abandonedRecording.value.filter(
                 (s) => s.id !== sessionId,
             );
+        } else {
+            // the first read was invalidated above and has no list to fix
+            refresh().catch(() => {});
         }
     }
 

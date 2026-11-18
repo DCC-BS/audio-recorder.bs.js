@@ -124,8 +124,12 @@ async function handleCustomAction(
                       chunkCount: undefined,
                   }
                 : await exportSession(sessionId);
+        // without an export, guard the delete with the count seen now
+        const expectedCount =
+            chunkCount ??
+            (await audioStorage.getSession(sessionId))?.chunkCount;
 
-        const deleteSessionFn = () => deleteSession(sessionId, chunkCount);
+        const deleteSessionFn = () => deleteSession(sessionId, expectedCount);
 
         await action.handler(sessionId, mp3Blob, deleteSessionFn, chunkCount);
     } catch (error) {

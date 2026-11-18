@@ -232,7 +232,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             // session paused, ready to be resumed
             const stored = isRecording.value ? appendMp3() : appendQueue;
             isRecording.value = false;
-            const paused = pausing.settled();
+            const paused = pausing.writesSettled();
             void releaseRecorder();
             Promise.all([stored, paused])
                 .catch(() => {})
@@ -274,14 +274,14 @@ export function useAudioRecording(options: RecordingOptions = {}) {
      *
      * @param sessionId - The stored session to continue.
      */
-    function resumeSession(sessionId: string): Promise<void> {
+    async function resumeSession(sessionId: string): Promise<void> {
         // new audio would bypass IndexedDB, and finishing joins only what
         // is stored there: the result would silently lack it
         if (opt.disableDefaultStore) {
             fail(t("audio-recorder.audio.errors.resumeNeedsStore"));
-            return Promise.resolve();
+            return;
         }
-        return begin(sessionId);
+        await begin(sessionId);
     }
 
     async function begin(resumeId?: string): Promise<void> {
@@ -405,25 +405,13 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             isRecording.value = true;
             logStorageUsage();
         } catch (e) {
-            // a cancelled start is only cleaned up: nobody is left to tell
-            if (!(e instanceof StartCancelled)) {
-                console.error(e);
-                fail(
-                    e instanceof InputUnavailable
-                        ? e.message
-                        : openingDevices || !resumeId
-                          ? deviceError(e)
-                          : (e as Error)?.message ||
-                            "Recording could not be resumed",
-                );
-            }
-
             try {
                 if (resumeId) {
                     if (resumedStatusChanged) {
                         await audioStorage.setSessionStatus(
                             resumeId,
                             resumedFrom,
+                            true,
                         );
                     }
                 } else if (createdId) {
@@ -440,6 +428,20 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
             if (pcmRecorder) {
                 await releaseRecorder();
+            }
+
+            // reported after the cleanup, which a throwing onError would
+            // otherwise skip; a cancelled start has nobody left to tell
+            if (!(e instanceof StartCancelled)) {
+                console.error(e);
+                fail(
+                    e instanceof InputUnavailable
+                        ? e.message
+                        : openingDevices || !resumeId
+                          ? deviceError(e)
+                          : (e as Error)?.message ||
+                            "Recording could not be resumed",
+                );
             }
         }
     }

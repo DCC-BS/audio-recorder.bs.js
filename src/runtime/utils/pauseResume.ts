@@ -102,9 +102,21 @@ export function createPauseResume(ctx: PauseContext) {
     // the resume in progress; unmount waits for it before the final status
     let pendingResume: Promise<void> | undefined;
 
+    // the "recording" write of a resume in progress
+    let statusWrite: Promise<void> | undefined;
+
     /** Settles once a pause or resume in progress is done. */
     async function settled(): Promise<void> {
         await Promise.allSettled([pendingPause, pendingResume]);
+    }
+
+    /**
+     * Settles once no status write is in flight. Unlike `settled`, it does
+     * not wait for a resume still acquiring devices (a picker may stay
+     * open indefinitely); such a resume writes nothing once disposed.
+     */
+    async function writesSettled(): Promise<void> {
+        await Promise.allSettled([pendingPause, statusWrite]);
     }
 
     function pause(interrupted: boolean): Promise<void> {
@@ -192,7 +204,12 @@ export function createPauseResume(ctx: PauseContext) {
 
     async function doResume(): Promise<void> {
         await pendingPause;
-        if (!isPaused.value || ctx.isStarting.value || ctx.isStopping()) {
+        if (
+            !isPaused.value ||
+            ctx.isStarting.value ||
+            ctx.isStopping() ||
+            ctx.isDisposed()
+        ) {
             return;
         }
 
@@ -219,7 +236,11 @@ export function createPauseResume(ctx: PauseContext) {
 
             const sessionId = ctx.currentSession.value;
             if (sessionId && ctx.storeEnabled) {
-                await ctx.audioStorage.setSessionStatus(sessionId, "recording");
+                statusWrite = ctx.audioStorage.setSessionStatus(
+                    sessionId,
+                    "recording",
+                );
+                await statusWrite;
                 statusChanged = true;
             }
             // unmounted or stopped while the status was written
@@ -241,7 +262,7 @@ export function createPauseResume(ctx: PauseContext) {
             // An incomplete pause was left as "recording" and stays so.
             if (statusChanged && sessionId && !ctx.isDisposed()) {
                 await ctx.audioStorage
-                    .setSessionStatus(sessionId, storedStatus())
+                    .setSessionStatus(sessionId, storedStatus(), true)
                     .catch(() => {});
             }
             // stays paused. A recorder opened half way is of no use, and
@@ -311,6 +332,7 @@ export function createPauseResume(ctx: PauseContext) {
         pause,
         resume,
         settled,
+        writesSettled,
         storedStatus,
         reset,
     };
