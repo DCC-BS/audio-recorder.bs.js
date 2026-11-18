@@ -1,5 +1,6 @@
 import { type Ref, ref } from "vue";
 import type { AudioStorageService } from "../services/audioStorage";
+import type { AudioSessionStatus } from "../services/db";
 import type { PCMRecorder } from "./pcmRecorder";
 import { isIOS } from "./platform";
 
@@ -15,6 +16,21 @@ export class StartCancelled extends Error {}
 
 /** Freshly opened devices that already deliver no audio. */
 export class InputUnavailable extends Error {}
+
+/**
+ * @throws InputUnavailable when the recorder's input is already gone, e.g.
+ *   taken by a call that is still going on: it would only record silence.
+ */
+export function assertHealthy(
+    recorder: PCMRecorder,
+    t: (key: string) => string,
+): void {
+    if (!recorder.isHealthy) {
+        throw new InputUnavailable(
+            t("audio-recorder.audio.errors.inputUnavailable"),
+        );
+    }
+}
 
 /**
  * Resolves `auto` for this platform.
@@ -225,10 +241,7 @@ export function createPauseResume(ctx: PauseContext) {
             // An incomplete pause was left as "recording" and stays so.
             if (statusChanged && sessionId && !ctx.isDisposed()) {
                 await ctx.audioStorage
-                    .setSessionStatus(
-                        sessionId,
-                        pauseSaveFailed.value ? "recording" : "paused",
-                    )
+                    .setSessionStatus(sessionId, storedStatus())
                     .catch(() => {});
             }
             // stays paused. A recorder opened half way is of no use, and
@@ -270,14 +283,18 @@ export function createPauseResume(ctx: PauseContext) {
         await ctx.releaseRecorder();
         const recorder = await ctx.openRecorder();
         ctx.ensureNotDisposed();
-        // its input may already be taken away again (a call still going
-        // on); recording would only capture silence
-        if (!recorder.isHealthy) {
-            throw new InputUnavailable(
-                ctx.t("audio-recorder.audio.errors.inputUnavailable"),
-            );
-        }
+        assertHealthy(recorder, ctx.t);
         ctx.onStarted(recorder.stream);
+    }
+
+    /**
+     * The status a paused session is stored with: incomplete audio stays
+     * "recording" (interrupted) so it does not pass as a saved pause.
+     */
+    function storedStatus(): AudioSessionStatus {
+        return ctx.chunkFailed() || pauseSaveFailed.value
+            ? "recording"
+            : "paused";
     }
 
     function reset(): void {
@@ -294,6 +311,7 @@ export function createPauseResume(ctx: PauseContext) {
         pause,
         resume,
         settled,
+        storedStatus,
         reset,
     };
 }

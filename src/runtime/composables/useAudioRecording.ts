@@ -7,6 +7,7 @@ import {
     handleMicrophoneError,
 } from "../utils/microphone";
 import {
+    assertHealthy,
     createPauseResume,
     InputUnavailable,
     type PauseMode,
@@ -167,6 +168,14 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     });
     const { isPaused, isSavingPause, pauseSaveFailed, wasInterrupted } =
         pausing;
+    /** Holds a session: starting, recording, paused or finishing. */
+    const isActive = computed(
+        () =>
+            isStarting.value ||
+            isRecording.value ||
+            isPaused.value ||
+            isProcessing.value,
+    );
 
     let pcmRecorder: PCMRecorder | undefined;
 
@@ -212,8 +221,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             isPaused.value &&
             !isSavingPause.value &&
             !isStarting.value &&
-            !pauseSaveFailed.value &&
-            !chunkFailed
+            pausing.storedStatus() === "paused"
         ) {
             void releaseRecorder();
             releaseOwnership();
@@ -233,9 +241,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 .then(() =>
                     audioStorage.setSessionStatus(
                         sessionId,
-                        chunkFailed || pauseSaveFailed.value
-                            ? "recording"
-                            : "paused",
+                        pausing.storedStatus(),
                     ),
                 )
                 .catch(() => {})
@@ -258,26 +264,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         opt.onError(message);
     }
 
-    async function startRecording() {
-        // a recording still starting, paused or being joined owns the
-        // session and the buffers; a second start would record twice into
-        // them
-        if (
-            isRecording.value ||
-            isStarting.value ||
-            isProcessing.value ||
-            isPaused.value
-        ) {
-            return;
-        }
-
-        isStarting.value = true;
-        startCancelled = false;
-        try {
-            await start();
-        } finally {
-            isStarting.value = false;
-        }
+    function startRecording(): Promise<void> {
+        return begin();
     }
 
     /**
@@ -286,26 +274,26 @@ export function useAudioRecording(options: RecordingOptions = {}) {
      *
      * @param sessionId - The stored session to continue.
      */
-    async function resumeSession(sessionId: string) {
+    function resumeSession(sessionId: string): Promise<void> {
         // new audio would bypass IndexedDB, and finishing joins only what
         // is stored there: the result would silently lack it
         if (opt.disableDefaultStore) {
             fail(t("audio-recorder.audio.errors.resumeNeedsStore"));
-            return;
+            return Promise.resolve();
         }
-        if (
-            isRecording.value ||
-            isStarting.value ||
-            isProcessing.value ||
-            isPaused.value
-        ) {
-            return;
-        }
+        return begin(sessionId);
+    }
 
+    async function begin(resumeId?: string): Promise<void> {
+        // an active recorder owns the session and the buffers; a second
+        // start would record twice into them
+        if (isActive.value) {
+            return;
+        }
         isStarting.value = true;
         startCancelled = false;
         try {
-            await start(sessionId);
+            await start(resumeId);
         } finally {
             isStarting.value = false;
         }
@@ -386,10 +374,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             openingDevices = true;
             const recorder = await openRecorder();
             openingDevices = false;
-            if (resumeId && !recorder.isHealthy) {
-                throw new InputUnavailable(
-                    t("audio-recorder.audio.errors.inputUnavailable"),
-                );
+            if (resumeId) {
+                assertHealthy(recorder, t);
             }
 
             if (resumeId) {
@@ -408,10 +394,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             }
             ensureNotDisposed();
             // the input may have ended while the status was written
-            if (resumeId && !recorder.isHealthy) {
-                throw new InputUnavailable(
-                    t("audio-recorder.audio.errors.inputUnavailable"),
-                );
+            if (resumeId) {
+                assertHealthy(recorder, t);
             }
 
             opt.onRecordingStarted(recorder.stream);
@@ -765,6 +749,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isSavingPause,
         pauseSaveFailed,
         isBusy,
+        isActive,
         recordingTime,
         startRecording,
         pauseRecording,
@@ -778,6 +763,5 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         error,
         wasSuspended,
         wasInterrupted,
-        pauseMode,
     };
 }

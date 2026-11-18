@@ -1,6 +1,6 @@
 import { computed, onMounted, ref } from "vue";
 import { AudioStorageService } from "../services/audioStorage";
-import type { AudioSession } from "../services/db";
+import { type AudioSession, newestPaused } from "../services/db";
 import { useFFmpeg } from "./useFFmpeg";
 
 /**
@@ -45,14 +45,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
     const pausedRecording = computed(() =>
-        abandonedRecording.value
-            ?.filter((s) => s.status === "paused")
-            .sort((a, b) =>
-                (b.pausedAt ?? b.createdAt).localeCompare(
-                    a.pausedAt ?? a.createdAt,
-                ),
-            )
-            .at(0),
+        newestPaused(abandonedRecording.value ?? []),
     );
 
     onMounted(async () => {
@@ -95,14 +88,10 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
      * @returns The MP3 and the number of chunks in it, to pass to
      *   `markAsStopped` or `deleteAbandonedRecording` afterwards.
      */
-    async function exportSession(
+    function exportSession(
         sessionId: string,
     ): Promise<{ mp3Blob: Blob; chunkCount: number }> {
-        const chunks = await audioStorage.getSessionChunks(sessionId);
-        if (chunks.length === 0) {
-            throw new Error(`Session with ID ${sessionId} has no audio`);
-        }
-        return { mp3Blob: await concatMp3(chunks), chunkCount: chunks.length };
+        return audioStorage.exportSession(sessionId, concatMp3);
     }
 
     async function getMp3Blob(sessionId: string): Promise<Blob> {

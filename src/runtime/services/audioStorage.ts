@@ -1,5 +1,10 @@
 import { acquireSessionLock, getLiveSessionIds } from "../utils/sessionLock";
-import { type AudioSession, type AudioSessionStatus, db } from "./db";
+import {
+    type AudioSession,
+    type AudioSessionStatus,
+    db,
+    newestPaused,
+} from "./db";
 
 /** Another page is recording the session. */
 export class SessionInUse extends Error {}
@@ -119,20 +124,31 @@ export class AudioStorageService {
 
     /** The most recently paused session, if any. */
     public async getPausedSession(): Promise<AudioSession | undefined> {
-        const sessions = await this.getResumableSessions();
-        return sessions
-            .filter((s) => s.status === "paused")
-            .sort((a, b) =>
-                (b.pausedAt ?? b.createdAt).localeCompare(
-                    a.pausedAt ?? a.createdAt,
-                ),
-            )[0];
+        return newestPaused(await this.getResumableSessions());
     }
 
     /**
      * The chunks in `chunkIds` order: ids start with a timestamp, so a clock
      * set back during a pause would otherwise reorder them.
      */
+    /**
+     * Joins a stored session into one MP3.
+     *
+     * @param concatMp3 - Joins MP3 chunks, from `useFFmpeg`.
+     * @returns The MP3 and the number of chunks in it, to pass to
+     *   `markAsStopped` or `deleteStoredSession` afterwards.
+     */
+    public async exportSession(
+        sessionId: string,
+        concatMp3: (chunks: ArrayBuffer[]) => Promise<Blob>,
+    ): Promise<{ mp3Blob: Blob; chunkCount: number }> {
+        const chunks = await this.getSessionChunks(sessionId);
+        if (chunks.length === 0) {
+            throw new Error(`Session with ID ${sessionId} has no audio`);
+        }
+        return { mp3Blob: await concatMp3(chunks), chunkCount: chunks.length };
+    }
+
     public async getSessionChunks(sessionId: string): Promise<ArrayBuffer[]> {
         return db.transaction(
             "r",
@@ -258,14 +274,13 @@ export class AudioStorageService {
     }
 
     /** Deletes a session unless a recorder owns it, holding its lock meanwhile. */
-    private async deleteUnownedSession(sessionId: string): Promise<boolean> {
+    private async deleteUnownedSession(sessionId: string): Promise<void> {
         const release = await acquireSessionLock(sessionId);
         if (!release) {
-            return false;
+            return;
         }
         try {
             await this.deleteSession(sessionId);
-            return true;
         } finally {
             release();
         }

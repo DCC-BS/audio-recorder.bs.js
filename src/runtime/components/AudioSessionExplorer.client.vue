@@ -17,6 +17,11 @@ const props = withDefaults(defineProps<AudioSessionExplorerProps>(), {
     customActions: () => [],
 });
 
+const emit = defineEmits<{
+    /** A session was deleted, by the Delete button or a custom action. */
+    (e: "deleted", sessionId: string): void;
+}>();
+
 const audioStorage = new AudioStorageService();
 
 const { t } = useI18n();
@@ -56,6 +61,7 @@ async function deleteSession(
     try {
         await audioStorage.deleteStoredSession(sessionId, expectedChunkCount);
         sessions.value = sessions.value.filter((s) => s.id !== sessionId);
+        emit("deleted", sessionId);
     } catch (error) {
         console.error("Failed to delete session:", error);
         if (error instanceof SessionInUse) {
@@ -98,14 +104,10 @@ async function getMp3Blob(sessionId: string): Promise<Blob> {
     return (await exportSession(sessionId)).mp3Blob;
 }
 
-async function exportSession(
+function exportSession(
     sessionId: string,
 ): Promise<{ mp3Blob: Blob; chunkCount: number }> {
-    const chunks = await audioStorage.getSessionChunks(sessionId);
-    if (chunks.length === 0) {
-        throw new Error("No audio chunks found for this session");
-    }
-    return { mp3Blob: await concatMp3(chunks), chunkCount: chunks.length };
+    return audioStorage.exportSession(sessionId, concatMp3);
 }
 
 async function handleCustomAction(

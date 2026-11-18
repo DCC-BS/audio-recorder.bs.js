@@ -66,6 +66,19 @@ db.version(2)
     });
 
 // chunks are MP3 at 64 kbit/s, i.e. 8000 bytes per second
+/** The most recently paused of `sessions`, if any. */
+export function newestPaused(
+    sessions: readonly AudioSession[],
+): AudioSession | undefined {
+    return sessions
+        .filter((s) => s.status === "paused")
+        .sort((a, b) =>
+            (b.pausedAt ?? b.createdAt).localeCompare(
+                a.pausedAt ?? a.createdAt,
+            ),
+        )[0];
+}
+
 export const MP3_BYTES_PER_SECOND = 8000;
 
 db.version(3)

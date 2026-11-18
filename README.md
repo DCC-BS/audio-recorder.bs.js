@@ -291,6 +291,7 @@ The component exposes the following methods and reactive properties via template
 | `isStarting`             | `Ref<boolean>`                  | True while the recording starts (devices, permission prompt)                                                                                   |
 | `isProcessing`           | `Ref<boolean>`                  | True while a stopped recording is being finished                                                                                               |
 | `isBusy`                 | `ComputedRef<boolean>`          | Starting, recording, finishing or storing a pause: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open |
+| `isActive`               | `ComputedRef<boolean>`          | Holds a session: starting, recording, paused or finishing. A new start is ignored while true |
 | `startRecording`         | `() => Promise<void>`           | Method to start audio recording                                                                                                                |
 | `isPaused`               | `Ref<boolean>`                  | True while the recording is paused                                                                                                             |
 | `isSavingPause`          | `Ref<boolean>`                  | True while a pause is still being stored                                                                                                       |
@@ -429,6 +430,8 @@ interface CustomAction {
 | Slot      | Props                                    | Description                                        |
 | --------- | ---------------------------------------- | -------------------------------------------------- |
 | `actions` | `session`, `getMp3Blob`, `deleteSession` | Custom action buttons slot for maximum flexibility |
+
+The explorer emits `deleted` (`sessionId`) after a session was deleted, by its Delete button or by a custom action's `deleteSession`.
 
 #### Usage Examples
 
