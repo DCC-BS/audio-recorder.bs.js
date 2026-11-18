@@ -12,6 +12,8 @@ export class PCMRecorder {
     private _wasSuspended = false;
     private _boundHandleStateChange: () => void;
     private _boundHandleTrackMute: () => void;
+    /** The track feeding `source`; the stream may gain or lose others. */
+    private readonly _inputTrack: MediaStreamTrack | undefined;
 
     constructor(
         public readonly stream: MediaStream,
@@ -26,6 +28,7 @@ export class PCMRecorder {
         this.keepAwake = new KeepAwake(this._logger);
         this._boundHandleStateChange = this.handleStateChange.bind(this);
         this._boundHandleTrackMute = this.handleTrackMute.bind(this);
+        this._inputTrack = stream.getAudioTracks()[0];
 
         this.audioContext.addEventListener(
             "statechange",
@@ -82,11 +85,12 @@ export class PCMRecorder {
      * be resumed instead of replaced.
      */
     get isHealthy(): boolean {
+        const track = this._inputTrack;
         return (
             this.audioContext.state !== "closed" &&
-            this.stream
-                .getAudioTracks()
-                .every((t) => t.readyState === "live" && !t.muted)
+            track !== undefined &&
+            track.readyState === "live" &&
+            !track.muted
         );
     }
 
@@ -145,6 +149,10 @@ export class PCMRecorder {
      */
     public pause(): void {
         this._paused = true;
+        // stop capturing in the audio thread itself: blocks already queued
+        // are dropped by the caller, and none captured while paused can
+        // arrive after a resume
+        this.pcmWorklet.port.postMessage({ type: "pause" });
         this.keepAwake.stop();
     }
 
@@ -156,6 +164,7 @@ export class PCMRecorder {
             await this.audioContext.resume();
         }
         this._paused = false;
+        this.pcmWorklet.port.postMessage({ type: "resume" });
         await this.keepAwake.start();
     }
 

@@ -53,6 +53,7 @@ const {
     isProcessing,
     isPaused,
     isSavingPause,
+    pauseSaveFailed,
     isBusy,
     startRecording,
     pauseRecording,
@@ -130,6 +131,7 @@ defineExpose({
     isProcessing,
     isPaused,
     isSavingPause,
+    pauseSaveFailed,
     isBusy,
     startRecording,
     pauseRecording,
@@ -216,9 +218,13 @@ defineExpose({
                     {{
                         isSavingPause
                             ? t("audio-recorder.audio.savingPause")
-                            : wasInterrupted
-                              ? t("audio-recorder.audio.pausedByInterruption")
-                              : t("audio-recorder.audio.pausedSafely")
+                            : pauseSaveFailed
+                              ? t("audio-recorder.audio.errors.pauseNotSaved")
+                              : wasInterrupted
+                                ? t(
+                                      "audio-recorder.audio.pausedByInterruption",
+                                  )
+                                : t("audio-recorder.audio.pausedSafely")
                     }}
                 </p>
                 <div v-else class="flex items-center justify-center gap-3">

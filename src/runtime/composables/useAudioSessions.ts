@@ -96,7 +96,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
      * @param sessionId - The stored recording.
      */
     async function markAsStopped(sessionId: string): Promise<void> {
-        await audioStorage.setSessionStatus(sessionId, "stopped");
+        await audioStorage.markAsStopped(sessionId);
         await refresh();
     }
 

@@ -37,6 +37,17 @@ export interface AudioSession {
     source?: string;
 }
 
+/**
+ * Whether a stored session may be continued: paused or interrupted ones
+ * (including rows from before version 3, which have no status) may, the
+ * backup of an ended recording may not.
+ *
+ * @param session - The stored session.
+ */
+export function isResumable(session: Pick<AudioSession, "status">): boolean {
+    return session.status !== "stopped";
+}
+
 const db = new Dexie("AudioRecorderDB") as Dexie & {
     audioChunks: EntityTable<AudioChunk, "id">;
     audioSessions: EntityTable<AudioSession, "id">;

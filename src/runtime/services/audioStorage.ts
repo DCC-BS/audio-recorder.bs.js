@@ -1,4 +1,4 @@
-import { getLiveSessionIds } from "../utils/sessionLock";
+import { acquireSessionLock, getLiveSessionIds } from "../utils/sessionLock";
 import { type AudioSession, type AudioSessionStatus, db } from "./db";
 
 export class AudioStorageService {
@@ -177,6 +177,49 @@ export class AudioStorageService {
         );
     }
 
+    /**
+     * Ends a stored session without deleting it, e.g. once a paused
+     * recording was handed on: it is kept as a backup and can no longer be
+     * continued.
+     *
+     * @param sessionId - The stored session.
+     * @throws Error when a recorder owns the session right now (another tab
+     *   resumed it), whose status must not be overwritten.
+     */
+    public async markAsStopped(sessionId: string): Promise<void> {
+        const release = await acquireSessionLock(sessionId);
+        if (!release) {
+            throw new Error(
+                `Session with ID ${sessionId} is being recorded elsewhere`,
+            );
+        }
+        try {
+            await this.setSessionStatus(sessionId, "stopped");
+        } finally {
+            release();
+        }
+    }
+
+    /**
+     * Deletes a session unless a recorder owns it; the lock is held until
+     * the deletion is done, so no tab can resume it half way.
+     *
+     * @param sessionId - The session to delete.
+     * @returns Whether it was deleted.
+     */
+    private async deleteUnownedSession(sessionId: string): Promise<boolean> {
+        const release = await acquireSessionLock(sessionId);
+        if (!release) {
+            return false;
+        }
+        try {
+            await this.deleteSession(sessionId);
+            return true;
+        } finally {
+            release();
+        }
+    }
+
     public async clearSessionOverThreshold(maxSessions: number): Promise<void> {
         const live = await getLiveSessionIds();
         const sessions = (
@@ -196,7 +239,7 @@ export class AudioStorageService {
         );
 
         for (const session of sessionsToDelete) {
-            await this.deleteSession(session.id);
+            await this.deleteUnownedSession(session.id);
         }
     }
 
@@ -211,7 +254,7 @@ export class AudioStorageService {
         ).filter((s) => !live.has(s.id));
 
         for (const session of oldSessions) {
-            await this.deleteSession(session.id);
+            await this.deleteUnownedSession(session.id);
         }
     }
 }

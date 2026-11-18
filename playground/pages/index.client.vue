@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAudioSessions } from "../../src/runtime/composables/useAudioSessions";
+import { isResumable } from "../../src/runtime/services/db";
 
 const logs = ref<string[]>([]);
 // a stored session to continue instead of starting a new one
@@ -36,7 +37,7 @@ async function downloadAudio(id: string) {
             <div class="mb-2 flex gap-2 justify-center">
                 <span>Recording started at: {{ new Date(value.createdAt).toLocaleString() }}</span>
                 <span class="session-status">Status: {{ value.status }}</span>
-                <UButton @click="resumeId = value.id" color="primary">Continue</UButton>
+                <UButton v-if="isResumable(value)" @click="resumeId = value.id" color="primary">Continue</UButton>
                 <UButton @click="downloadAudio(value.id)" color="secondary">Recover</UButton>
                 <UButton @click="deleteAbandonedRecording(value.id)" color="error">Delete</UButton>
             </div>

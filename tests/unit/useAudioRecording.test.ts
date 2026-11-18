@@ -377,3 +377,184 @@ describe("useAudioRecording pause and resume", () => {
         expect(r.isPaused.value).toBe(true);
     });
 });
+
+describe("useAudioRecording review fixes", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        storage.getSession.mockImplementation(
+            async () => ({ id: "session-1" }) as never,
+        );
+        storage.createSession.mockImplementation(async () => "session-1");
+        URL.createObjectURL = vi.fn(() => "blob:audio");
+        Object.defineProperty(navigator, "storage", {
+            configurable: true,
+            value: { estimate: async () => ({ usage: 0, quota: 1 }) },
+        });
+    });
+
+    it("keeps an omitted logger as a no-op", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        const r = useAudioRecording({ logger: undefined, pauseMode: "keep" });
+        await r.startRecording();
+
+        expect(first.setLogger).toHaveBeenCalledWith(expect.any(Function));
+        storage.setSessionStatus.mockRejectedValueOnce(new Error("db"));
+        // logs the failed status write instead of throwing
+        await expect(r.pauseRecording()).resolves.toBeUndefined();
+    });
+
+    it("does not delete an earlier session when a new start fails", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.getSessionChunks.mockRejectedValueOnce(new Error("db gone"));
+        const r = useAudioRecording();
+        await r.startRecording();
+        await expect(r.stopRecording()).rejects.toThrow("db gone");
+        storage.deleteSession.mockClear();
+
+        startPcmRecorder.mockRejectedValueOnce(new Error("denied"));
+        await r.startRecording();
+
+        // session-1 is kept as the failed finish's backup
+        expect(storage.deleteSession).not.toHaveBeenCalled();
+    });
+
+    it("refuses to continue a stopped session", async () => {
+        storage.getSession.mockResolvedValueOnce({
+            id: "stored",
+            status: "stopped",
+        } as never);
+        const onError = vi.fn();
+        const r = useAudioRecording({ onError });
+
+        await r.resumeSession("stored");
+
+        expect(startPcmRecorder).not.toHaveBeenCalled();
+        expect(storage.setSessionStatus).not.toHaveBeenCalled();
+        expect(onError).toHaveBeenCalledWith(
+            "audio-recorder.audio.errors.sessionNotResumable",
+        );
+    });
+
+    it("refuses to continue a session without the default store", async () => {
+        const onError = vi.fn();
+        const r = useAudioRecording({ disableDefaultStore: true, onError });
+
+        await r.resumeSession("stored");
+
+        expect(startPcmRecorder).not.toHaveBeenCalled();
+        expect(onError).toHaveBeenCalledWith(
+            "audio-recorder.audio.errors.resumeNeedsStore",
+        );
+    });
+
+    it("reports a pause whose audio could not be stored", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.storeAudioChunk.mockRejectedValueOnce(new Error("quota"));
+        const onRecordingPaused = vi.fn();
+        const onError = vi.fn();
+        const r = useAudioRecording({
+            pauseMode: "keep",
+            onRecordingPaused,
+            onError,
+        });
+        await r.startRecording();
+        first.emit(1);
+
+        await r.pauseRecording();
+
+        expect(r.pauseSaveFailed.value).toBe(true);
+        expect(r.isSavingPause.value).toBe(false);
+        expect(onRecordingPaused).not.toHaveBeenCalled();
+        expect(onError).toHaveBeenCalledWith(
+            "audio-recorder.audio.errors.pauseNotSaved",
+        );
+    });
+
+    it("reports a pause whose status could not be stored", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.setSessionStatus.mockRejectedValueOnce(new Error("db"));
+        const onRecordingPaused = vi.fn();
+        const r = useAudioRecording({ pauseMode: "keep", onRecordingPaused });
+        await r.startRecording();
+
+        await r.pauseRecording();
+
+        expect(r.pauseSaveFailed.value).toBe(true);
+        expect(onRecordingPaused).not.toHaveBeenCalled();
+    });
+
+    it("stays paused when stopped while the resume is stored", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        const r = useAudioRecording({ pauseMode: "keep" });
+        await r.startRecording();
+        await r.pauseRecording();
+
+        let writeStatus: () => void = () => {};
+        storage.setSessionStatus.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    writeStatus = resolve;
+                }),
+        );
+        const resuming = r.resumeRecording();
+        await vi.waitFor(() =>
+            expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+                "session-1",
+                "recording",
+            ),
+        );
+        // a stop while resuming cancels the resume
+        await r.stopRecording();
+        writeStatus();
+        await resuming;
+
+        expect(r.isRecording.value).toBe(false);
+        expect(r.isPaused.value).toBe(true);
+        expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+            "session-1",
+            "paused",
+        );
+    });
+
+    it("replaces devices interrupted while resuming", async () => {
+        const first = fakeRecorder();
+        const second = fakeRecorder();
+        startPcmRecorder
+            .mockResolvedValueOnce(first)
+            .mockResolvedValueOnce(second);
+        const r = useAudioRecording({ pauseMode: "keep" });
+        await r.startRecording();
+        await r.pauseRecording();
+        // the input mutes while the resume is under way
+        first.resume.mockImplementationOnce(async () => {
+            first.isHealthy = false;
+        });
+
+        await r.resumeRecording();
+
+        expect(first.stop).toHaveBeenCalledOnce();
+        expect(startPcmRecorder).toHaveBeenCalledTimes(2);
+        expect(r.isRecording.value).toBe(true);
+    });
+
+    it("marks a delivered session stopped before deleting it", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.deleteSession.mockRejectedValueOnce(new Error("db"));
+        const r = useAudioRecording();
+        await r.startRecording();
+        first.emit(1);
+
+        await r.stopRecording();
+
+        expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+            "session-1",
+            "stopped",
+        );
+    });
+});

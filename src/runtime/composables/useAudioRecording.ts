@@ -1,6 +1,7 @@
 import { computed, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { AudioStorageService } from "../services/audioStorage";
+import { isResumable } from "../services/db";
 import {
     checkMicrophoneAvailability,
     handleMicrophoneError,
@@ -110,7 +111,12 @@ const optionsDefault: Required<
  * ```
  */
 export function useAudioRecording(options: RecordingOptions = {}) {
-    const opt = { ...optionsDefault, ...options };
+    // an option passed as `undefined` (e.g. an omitted component prop)
+    // keeps its default instead of overriding it
+    const defined = Object.fromEntries(
+        Object.entries(options).filter(([, value]) => value !== undefined),
+    ) as RecordingOptions;
+    const opt = { ...optionsDefault, ...defined };
     const { t } = useI18n();
     const { concatMp3, pcmToMp3 } = useFFmpeg(opt.logger);
 
@@ -152,6 +158,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
      * last seconds.
      */
     const isSavingPause = ref(false);
+    /**
+     * The current pause could not be stored completely: part of the audio
+     * or the paused status is missing, so it is not safe to leave. What was
+     * stored stays recoverable among the abandoned recordings.
+     */
+    const pauseSaveFailed = ref(false);
     /** The current pause was caused by the system (a call, Siri), not the user. */
     const wasInterrupted = ref(false);
     /** Seconds recorded in this session, pauses not counted. */
@@ -266,6 +278,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
      * @param sessionId - The stored session to continue.
      */
     async function resumeSession(sessionId: string) {
+        // new audio would bypass IndexedDB, and finishing joins only what
+        // is stored there: the result would silently lack it
+        if (opt.disableDefaultStore) {
+            fail(t("audio-recorder.audio.errors.resumeNeedsStore"));
+            return;
+        }
         if (
             isRecording.value ||
             isStarting.value ||
@@ -331,6 +349,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         resetRecording();
         requestPersistentStorage();
 
+        // a session left from an earlier recording (e.g. a failed finish)
+        // is not this start's to clean up
+        currentSession.value = undefined;
+        // the session this start created, the only one it may delete
+        let createdId: string | undefined;
         // set once the resumed session was switched to recording, so a
         // failure can put it back
         let resumedStatusChanged = false;
@@ -347,6 +370,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 const session = await audioStorage.getSession(resumeId);
                 if (!session) {
                     throw new Error(`Session with ID ${resumeId} not found`);
+                }
+                // a stopped session is a delivered recording's backup
+                if (!isResumable(session)) {
+                    throw new Error(
+                        t("audio-recorder.audio.errors.sessionNotResumable"),
+                    );
                 }
                 currentSession.value = resumeId;
                 elapsed = session.duration ?? 0;
@@ -368,6 +397,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                     1,
                     opt.sessionSource,
                 );
+                createdId = id;
                 currentSession.value = id;
                 releaseLock = (await acquireSessionLock(id)) ?? (() => {});
             }
@@ -397,8 +427,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                     if (resumedStatusChanged) {
                         await audioStorage.setSessionStatus(resumeId, "paused");
                     }
-                } else if (currentSession.value) {
-                    await audioStorage.deleteSession(currentSession.value);
+                } else if (createdId) {
+                    await audioStorage.deleteSession(createdId);
                 }
             } catch (err) {
                 console.error(
@@ -590,19 +620,22 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isRecording.value = false;
         isPaused.value = true;
         isSavingPause.value = true;
+        pauseSaveFailed.value = false;
         wasInterrupted.value = interrupted;
 
         const sessionId = currentSession.value;
         // marked right away: the encoding below can take a while, and a
         // page closed meanwhile should still leave a paused session
-        const marked =
+        const marked: Promise<boolean> =
             sessionId && !opt.disableDefaultStore
-                ? audioStorage
-                      .setSessionStatus(sessionId, "paused")
-                      .catch((e) => {
+                ? audioStorage.setSessionStatus(sessionId, "paused").then(
+                      () => true,
+                      (e) => {
                           opt.logger(`Storing the pause failed: ${e}`);
-                      })
-                : Promise.resolve();
+                          return false;
+                      },
+                  )
+                : Promise.resolve(true);
 
         const stored = appendMp3();
         if (pauseMode === "release") {
@@ -616,10 +649,19 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         try {
             await stored;
         } catch {
-            // kept in chunkFailure, reported when the recording is finished
+            // kept in chunkFailure, checked below
         }
-        await marked;
+        const statusStored = await marked;
         isSavingPause.value = false;
+
+        // an earlier periodic chunk may have failed too. Without the paused
+        // status the session still shows up as interrupted after a reload,
+        // so what was stored stays recoverable either way
+        if (chunkFailure || !statusStored) {
+            pauseSaveFailed.value = true;
+            fail(t("audio-recorder.audio.errors.pauseNotSaved"));
+            return;
+        }
 
         opt.onRecordingPaused(interrupted);
     }
@@ -640,6 +682,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isStarting.value = true;
         startCancelled = false;
         error.value = "";
+        // set once the session was switched back to recording, so a cancel
+        // or failure can put it back to paused
+        let statusChanged = false;
         try {
             let resumed = false;
             if (pcmRecorder?.isHealthy) {
@@ -651,10 +696,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 }
             }
             if (!resumed) {
-                await releaseRecorder();
-                const recorder = await openRecorder();
-                ensureNotDisposed();
-                opt.onRecordingStarted(recorder.stream);
+                await reopenRecorder();
             }
             ensureNotDisposed();
 
@@ -663,6 +705,17 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                     currentSession.value,
                     "recording",
                 );
+                statusChanged = true;
+            }
+            // unmounted or stopped while the status was written
+            ensureNotDisposed();
+
+            // an interruption during the steps above went unnoticed: the
+            // recorder was not recording yet. Replace devices that no
+            // longer deliver audio instead of resuming into silence
+            if (!pcmRecorder?.isHealthy) {
+                await reopenRecorder();
+                ensureNotDisposed();
             }
 
             isPaused.value = false;
@@ -673,6 +726,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             if (!(e instanceof StartCancelled)) {
                 console.error(e);
                 fail(deviceError(e));
+            }
+            if (statusChanged && currentSession.value) {
+                await audioStorage
+                    .setSessionStatus(currentSession.value, "paused")
+                    .catch(() => {});
             }
             // stays paused. A recorder opened half way is of no use, and
             // after a cancel nobody would ever close it
@@ -689,6 +747,18 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         } finally {
             isStarting.value = false;
         }
+    }
+
+    /**
+     * Replaces the devices with freshly opened ones and announces them.
+     *
+     * @throws StartCancelled when the resume was cancelled meanwhile.
+     */
+    async function reopenRecorder(): Promise<void> {
+        await releaseRecorder();
+        const recorder = await openRecorder();
+        ensureNotDisposed();
+        opt.onRecordingStarted(recorder.stream);
     }
 
     /**
@@ -781,7 +851,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             opt.onRecordingStopped(audioBlob.value, audioUrl.value);
             settled = true;
 
-            // delivered: the stored copy is no longer needed
+            // delivered: the stored copy is no longer needed. Marked stopped
+            // first, so a failed delete leaves a backup rather than a
+            // recording that looks like it still waits to be continued
+            await audioStorage
+                .setSessionStatus(sessionId, "stopped")
+                .catch(() => {});
             await audioStorage.deleteSession(sessionId).catch((e) => {
                 console.error("Error deleting the delivered session:", e);
             });
@@ -844,6 +919,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         wasSuspended.value = false;
         wasInterrupted.value = false;
         isSavingPause.value = false;
+        pauseSaveFailed.value = false;
         pcmRecorder = undefined;
     }
 
@@ -853,6 +929,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isProcessing,
         isPaused,
         isSavingPause,
+        pauseSaveFailed,
         isBusy,
         recordingTime,
         startRecording,
