@@ -14,6 +14,9 @@ export class PCMRecorder {
     private _boundHandleTrackMute: () => void;
     /** The track feeding `source`; the stream may gain or lose others. */
     private readonly _inputTrack: MediaStreamTrack | undefined;
+    /** Settles once the worklet confirmed a pause, see {@link pause}. */
+    private _pauseAcknowledged: Promise<void> = Promise.resolve();
+    private _acknowledgePause: () => void = () => {};
 
     constructor(
         public readonly stream: MediaStream,
@@ -23,12 +26,14 @@ export class PCMRecorder {
         public readonly sampleRate: number = audioContext.sampleRate,
         /** Whether stop() ends the stream's tracks; false for a caller's stream. */
         private readonly ownsStream: boolean = true,
+        /** The track `source` was created from; defaults to the first one. */
+        inputTrack: MediaStreamTrack | undefined = stream.getAudioTracks()[0],
     ) {
         this._logger = () => {};
         this.keepAwake = new KeepAwake(this._logger);
         this._boundHandleStateChange = this.handleStateChange.bind(this);
         this._boundHandleTrackMute = this.handleTrackMute.bind(this);
-        this._inputTrack = stream.getAudioTracks()[0];
+        this._inputTrack = inputTrack;
 
         this.audioContext.addEventListener(
             "statechange",
@@ -51,6 +56,8 @@ export class PCMRecorder {
                     for (const listener of this.listeners) {
                         listener(samples);
                     }
+                } else if (event.data.type === "paused") {
+                    this._acknowledgePause();
                 }
             } catch (e) {
                 console.error("Error processing PCM data:", e);
@@ -89,6 +96,9 @@ export class PCMRecorder {
         return (
             this.audioContext.state !== "closed" &&
             track !== undefined &&
+            // removed from the stream without being stopped: no longer the
+            // input the caller meant to record
+            this.stream.getAudioTracks().includes(track) &&
             track.readyState === "live" &&
             !track.muted
         );
@@ -149,9 +159,12 @@ export class PCMRecorder {
      */
     public pause(): void {
         this._paused = true;
-        // stop capturing in the audio thread itself: blocks already queued
-        // are dropped by the caller, and none captured while paused can
-        // arrive after a resume
+        // stop capturing in the audio thread itself. The worklet answers
+        // with "paused" after every block it posted before, so once the
+        // answer is in, no block captured before the pause is still queued
+        this._pauseAcknowledged = new Promise((resolve) => {
+            this._acknowledgePause = resolve;
+        });
         this.pcmWorklet.port.postMessage({ type: "pause" });
         this.keepAwake.stop();
     }
@@ -163,6 +176,12 @@ export class PCMRecorder {
         if (this.audioContext.state !== "running") {
             await this.audioContext.resume();
         }
+        // blocks from before the pause must not land after the resume; a
+        // worklet that never answers must not block resuming forever
+        await Promise.race([
+            this._pauseAcknowledged,
+            new Promise((resolve) => setTimeout(resolve, PAUSE_ACK_TIMEOUT_MS)),
+        ]);
         this._paused = false;
         this.pcmWorklet.port.postMessage({ type: "resume" });
         await this.keepAwake.start();
@@ -214,6 +233,9 @@ export class PCMRecorder {
  * @param externalStream - Stream to record instead of the microphone. Its
  * tracks are left running when the recorder stops.
  */
+/** How long a resume waits for the worklet to confirm an earlier pause. */
+const PAUSE_ACK_TIMEOUT_MS = 500;
+
 export async function startPcmRecorder(externalStream?: MediaStream) {
     const stream =
         externalStream ??
@@ -224,7 +246,16 @@ export async function startPcmRecorder(externalStream?: MediaStream) {
     const audioContext = new AudioContext();
 
     await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
-    const source = audioContext.createMediaStreamSource(stream);
+    // a stream with several audio tracks feeds the source from whichever
+    // the browser picks; bind it to one explicitly so the recorder knows
+    // which input to watch
+    const inputTrack = stream.getAudioTracks()[0];
+    if (!inputTrack) {
+        throw new Error("The stream has no audio track to record");
+    }
+    const source = audioContext.createMediaStreamSource(
+        new MediaStream([inputTrack]),
+    );
 
     const pcmWorklet = new AudioWorkletNode(audioContext, "pcm-recorder", {
         numberOfInputs: 1,
@@ -252,6 +283,7 @@ export async function startPcmRecorder(externalStream?: MediaStream) {
         source,
         audioContext.sampleRate,
         externalStream === undefined,
+        inputTrack,
     );
     await recorder.startKeepAwake();
 

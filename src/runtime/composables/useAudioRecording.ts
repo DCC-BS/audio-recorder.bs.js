@@ -65,6 +65,9 @@ export type RecordingOptions = {
 /** Aborts a start whose owner unmounted while it was still starting. */
 class StartCancelled extends Error {}
 
+/** Freshly opened devices that already deliver no audio. */
+class InputUnavailable extends Error {}
+
 const optionsDefault: Required<
     Omit<
         RecordingOptions,
@@ -725,7 +728,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         } catch (e) {
             if (!(e instanceof StartCancelled)) {
                 console.error(e);
-                fail(deviceError(e));
+                fail(
+                    e instanceof InputUnavailable
+                        ? (e as Error).message
+                        : deviceError(e),
+                );
             }
             if (statusChanged && currentSession.value) {
                 await audioStorage
@@ -758,6 +765,13 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         await releaseRecorder();
         const recorder = await openRecorder();
         ensureNotDisposed();
+        // its input may already be taken away again (a call still going
+        // on); recording would only capture silence
+        if (!recorder.isHealthy) {
+            throw new InputUnavailable(
+                t("audio-recorder.audio.errors.inputUnavailable"),
+            );
+        }
         opt.onRecordingStarted(recorder.stream);
     }
 
@@ -854,11 +868,21 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             // delivered: the stored copy is no longer needed. Marked stopped
             // first, so a failed delete leaves a backup rather than a
             // recording that looks like it still waits to be continued
-            await audioStorage
+            const markedStopped = await audioStorage
                 .setSessionStatus(sessionId, "stopped")
-                .catch(() => {});
+                .then(
+                    () => true,
+                    () => false,
+                );
             await audioStorage.deleteSession(sessionId).catch((e) => {
                 console.error("Error deleting the delivered session:", e);
+                // the recording itself was delivered, so this is no error
+                // for the user; but the leftover may be offered to continue
+                if (!markedStopped) {
+                    opt.logger(
+                        `The delivered session ${sessionId} could neither be deleted nor marked stopped and may be offered as resumable: ${e}`,
+                    );
+                }
             });
         } catch (e) {
             fail((e as Error)?.message || "Recording could not be finished");

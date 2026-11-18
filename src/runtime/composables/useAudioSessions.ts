@@ -94,9 +94,14 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
      * Use it once a paused recording was handed on, e.g. for processing.
      *
      * @param sessionId - The stored recording.
+     * @param expectedChunkCount - Its chunk count when it was handed on;
+     *   refuses if it grew since (continued in another tab).
      */
-    async function markAsStopped(sessionId: string): Promise<void> {
-        await audioStorage.markAsStopped(sessionId);
+    async function markAsStopped(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
+        await audioStorage.markAsStopped(sessionId, expectedChunkCount);
         await refresh();
     }
 

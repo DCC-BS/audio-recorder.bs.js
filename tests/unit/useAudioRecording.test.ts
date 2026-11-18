@@ -557,4 +557,48 @@ describe("useAudioRecording review fixes", () => {
             "stopped",
         );
     });
+
+    it("stays paused when the reopened input is already unusable", async () => {
+        const first = fakeRecorder();
+        const second = fakeRecorder();
+        second.isHealthy = false;
+        startPcmRecorder
+            .mockResolvedValueOnce(first)
+            .mockResolvedValueOnce(second);
+        const onError = vi.fn();
+        const r = useAudioRecording({ pauseMode: "release", onError });
+        await r.startRecording();
+        await r.pauseRecording();
+
+        await r.resumeRecording();
+
+        expect(r.isRecording.value).toBe(false);
+        expect(r.isPaused.value).toBe(true);
+        expect(second.stop).toHaveBeenCalledOnce();
+        expect(onError).toHaveBeenCalledWith(
+            "audio-recorder.audio.errors.inputUnavailable",
+        );
+    });
+
+    it("logs a delivered session it can neither delete nor mark", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        const onRecordingStopped = vi.fn();
+        const onError = vi.fn();
+        const logger = vi.fn();
+        const r = useAudioRecording({ onRecordingStopped, onError, logger });
+        await r.startRecording();
+        first.emit(1);
+        storage.setSessionStatus.mockRejectedValueOnce(new Error("db"));
+        storage.deleteSession.mockRejectedValueOnce(new Error("db"));
+
+        await r.stopRecording();
+
+        // delivered all the same, and not reported as a user error
+        expect(onRecordingStopped).toHaveBeenCalledOnce();
+        expect(onError).not.toHaveBeenCalled();
+        expect(logger).toHaveBeenCalledWith(
+            expect.stringContaining("could neither be deleted nor marked"),
+        );
+    });
 });

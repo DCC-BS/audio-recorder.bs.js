@@ -13,6 +13,9 @@ async function shownSeconds(page: Page): Promise<number> {
 
 test.describe("Pause and resume", () => {
     test("pauses, resumes and finishes a recording", async ({ page }) => {
+        // two ffmpeg-bound steps (first chunk, final join) do not reliably
+        // fit the default 30s on a cold CI runner
+        test.setTimeout(90_000);
         await page.goto("/");
         await page.getByRole("button", { name: audio.startRecording }).click();
         await expect(page.getByText(audio.recordingInProgress)).toBeVisible();

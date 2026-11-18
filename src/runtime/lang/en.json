@@ -19,7 +19,8 @@
                 "sessionInUse": "This recording is open in another tab or window.",
                 "pauseNotSaved": "Paused, but part of the recording could not be saved. Don't close the app yet: finish the recording to keep what was saved, or check the abandoned recordings.",
                 "sessionNotResumable": "This recording was already finished and is only kept as a backup; it cannot be continued.",
-                "resumeNeedsStore": "Stored recordings can only be continued when the default storage is enabled."
+                "resumeNeedsStore": "Stored recordings can only be continued when the default storage is enabled.",
+                "inputUnavailable": "The audio input is not available right now (e.g. during a call). The recording stays paused; try again later."
             },
             "warnings": {
                 "suspendedRecording": "Recording was interrupted while in background. Some audio may be missing.",

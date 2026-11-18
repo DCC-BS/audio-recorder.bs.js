@@ -216,10 +216,16 @@ export class AudioStorageService {
      * continued.
      *
      * @param sessionId - The stored session.
+     * @param expectedChunkCount - The chunk count the caller handed on. If
+     *   the session has grown since (another tab continued it), it is not
+     *   what was handed on and keeps its status.
      * @throws Error when a recorder owns the session right now (another tab
-     *   resumed it), whose status must not be overwritten.
+     *   resumed it), or it changed since it was handed on.
      */
-    public async markAsStopped(sessionId: string): Promise<void> {
+    public async markAsStopped(
+        sessionId: string,
+        expectedChunkCount?: number,
+    ): Promise<void> {
         const release = await acquireSessionLock(sessionId);
         if (!release) {
             throw new Error(
@@ -227,6 +233,19 @@ export class AudioStorageService {
             );
         }
         try {
+            // read under the lock: the list the caller acted on may be stale
+            const session = await db.audioSessions.get(sessionId);
+            if (!session) {
+                throw new Error(`Session with ID ${sessionId} not found`);
+            }
+            if (
+                expectedChunkCount !== undefined &&
+                session.chunkCount !== expectedChunkCount
+            ) {
+                throw new Error(
+                    `Session with ID ${sessionId} changed since it was handed on`,
+                );
+            }
             await this.setSessionStatus(sessionId, "stopped");
         } finally {
             release();
