@@ -51,6 +51,7 @@ const recorder = vi.hoisted(() => ({
 }));
 
 const startPcmRecorder = vi.hoisted(() => vi.fn());
+const releaseLock = vi.hoisted(() => vi.fn());
 
 vi.mock("vue-i18n", () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock("../../src/runtime/services/audioStorage", () => ({
@@ -63,6 +64,9 @@ vi.mock("../../src/runtime/services/audioStorage", () => ({
     },
 }));
 vi.mock("../../src/runtime/utils/pcmRecorder", () => ({ startPcmRecorder }));
+vi.mock("../../src/runtime/utils/sessionLock", () => ({
+    acquireSessionLock: vi.fn(async () => releaseLock),
+}));
 vi.mock("../../src/runtime/utils/microphone", () => ({
     checkMicrophoneAvailability: vi.fn(async () => ({ isAvailable: true })),
     handleMicrophoneError: vi.fn(() => "microphone error"),
@@ -810,5 +814,32 @@ describe("useAudioRecording review fixes", () => {
 
         expect(second.stop).toHaveBeenCalled();
         expect(r.isPaused.value).toBe(true);
+    });
+
+    it("lets go of a fully stored pause at once on unmount", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        let r!: ReturnType<typeof useAudioRecording>;
+        const app = createApp(
+            defineComponent({
+                setup() {
+                    r = useAudioRecording({ pauseMode: "keep" });
+                    return () => null;
+                },
+            }),
+        );
+        app.mount(document.createElement("div"));
+        await r.startRecording();
+        first.emit(1);
+        await r.pauseRecording();
+        storage.setSessionStatus.mockClear();
+
+        app.unmount();
+
+        // released synchronously: a page shown right after lists it
+        expect(releaseLock).toHaveBeenCalledOnce();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(storage.setSessionStatus).not.toHaveBeenCalled();
+        expect(first.stop).toHaveBeenCalled();
     });
 });

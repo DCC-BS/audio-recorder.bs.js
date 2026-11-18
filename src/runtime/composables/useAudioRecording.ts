@@ -206,6 +206,19 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
 
         const sessionId = currentSession.value;
+        // a pause that is fully stored needs no further write: let go of
+        // the session at once, so a page shown next lists it as paused
+        if (
+            isPaused.value &&
+            !isSavingPause.value &&
+            !isStarting.value &&
+            !pauseSaveFailed.value &&
+            !chunkFailed
+        ) {
+            void releaseRecorder();
+            releaseOwnership();
+            return;
+        }
         if ((isRecording.value || isPaused.value) && sessionId) {
             // keep what was recorded since the last store and leave the
             // session paused, ready to be resumed
