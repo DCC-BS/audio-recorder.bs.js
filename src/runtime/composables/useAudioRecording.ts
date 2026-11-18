@@ -351,6 +351,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             openingDevices = true;
             const recorder = await openRecorder();
             openingDevices = false;
+            if (resumeId && !recorder.isHealthy) {
+                throw new InputUnavailable(
+                    t("audio-recorder.audio.errors.inputUnavailable"),
+                );
+            }
 
             if (resumeId) {
                 await audioStorage.setSessionStatus(resumeId, "recording");
@@ -379,10 +384,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             if (!(e instanceof StartCancelled)) {
                 console.error(e);
                 fail(
-                    openingDevices || !resumeId
-                        ? deviceError(e)
-                        : (e as Error)?.message ||
-                              "Recording could not be resumed",
+                    e instanceof InputUnavailable
+                        ? e.message
+                        : openingDevices || !resumeId
+                          ? deviceError(e)
+                          : (e as Error)?.message ||
+                            "Recording could not be resumed",
                 );
             }
 

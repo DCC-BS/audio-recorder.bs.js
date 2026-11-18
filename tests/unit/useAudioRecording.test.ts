@@ -629,4 +629,25 @@ describe("useAudioRecording review fixes", () => {
             "recording",
         );
     });
+
+    it("leaves a stored session alone when its input is unusable", async () => {
+        const first = fakeRecorder();
+        first.isHealthy = false;
+        startPcmRecorder.mockResolvedValueOnce(first);
+        storage.getSession.mockResolvedValueOnce({
+            id: "stored",
+            duration: 5,
+        } as never);
+        const onError = vi.fn();
+        const r = useAudioRecording({ onError });
+
+        await r.resumeSession("stored");
+
+        expect(storage.setSessionStatus).not.toHaveBeenCalled();
+        expect(first.stop).toHaveBeenCalledOnce();
+        expect(r.isRecording.value).toBe(false);
+        expect(onError).toHaveBeenCalledWith(
+            "audio-recorder.audio.errors.inputUnavailable",
+        );
+    });
 });

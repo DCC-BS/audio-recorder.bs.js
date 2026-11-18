@@ -82,8 +82,10 @@ test.describe("Pause and resume", () => {
         // the clock carries on from the stored audio
         expect(await shownSeconds(page)).toBeGreaterThanOrEqual(atPause - 1);
         // record a known stretch after the reload
+        // the clock resumes from the stored duration, up to a second below
+        // the shown one, so this can take ~4s of capture plus startup
         await expect
-            .poll(() => shownSeconds(page))
+            .poll(() => shownSeconds(page), { timeout: 15_000 })
             .toBeGreaterThanOrEqual(atPause + 3);
 
         await page.getByRole("button", { name: audio.stopRecording }).click();
