@@ -16,12 +16,10 @@ interface Props {
     autoStart?: boolean;
     storeToDbInterval?: number;
     logger?: (msg: string) => void;
-    /** Shows the pause button. */
     allowPause?: boolean;
     pauseMode?: PauseMode;
     /** A stored session (paused or interrupted) to continue when recording starts. */
     resumeSessionId?: string;
-    /** Free-form tag stored with new sessions. */
     sessionSource?: string;
 }
 
@@ -86,9 +84,6 @@ const {
     sessionSource: props.sessionSource,
 });
 
-/**
- * Starts a new recording, or continues `resumeSessionId` when given.
- */
 function start(): void {
     if (props.resumeSessionId) {
         resumeSession(props.resumeSessionId);
@@ -116,7 +111,6 @@ function stopFromButton(): void {
     stopRecording().catch(() => {});
 }
 
-/** The recording section stays up while paused, with the clock frozen. */
 const showRecordingSection = computed(
     () => isRecording.value || isPaused.value,
 );

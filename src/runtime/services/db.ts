@@ -8,13 +8,8 @@ export interface AudioChunk {
 }
 
 /**
- * Where a stored session stands.
- *
- * - `recording`: being recorded. When no recorder owns it (see
- *   `AudioStorageService.isSessionLive`), the recording was interrupted (crash,
- *   closed tab) and can be resumed.
- * - `paused`: the user (or an interruption) paused it; it waits to be resumed.
- * - `stopped`: the user ended it; kept only as a backup.
+ * `recording` (interrupted when no page owns it, see sessionLock), `paused`,
+ * or `stopped` (ended, kept only as a backup).
  */
 export type AudioSessionStatus = "recording" | "paused" | "stopped";
 
@@ -29,21 +24,13 @@ export interface AudioSession {
     numChannels: number;
     /** Missing on sessions stored before version 3: treat as `recording`. */
     status?: AudioSessionStatus;
-    /** Seconds of audio stored so far. */
     duration?: number;
-    /** When the session was last paused (ISO string). */
     pausedAt?: string;
-    /** Free-form tag of what recorded it, e.g. "microphone" or "meeting". */
+    /** Free-form tag, e.g. "microphone" or "meeting". */
     source?: string;
 }
 
-/**
- * Whether a stored session may be continued: paused or interrupted ones
- * (including rows from before version 3, which have no status) may, the
- * backup of an ended recording may not.
- *
- * @param session - The stored session.
- */
+/** Paused and interrupted sessions may be continued, stopped ones not. */
 export function isResumable(session: Pick<AudioSession, "status">): boolean {
     return session.status !== "stopped";
 }

@@ -2,14 +2,11 @@
 class PCMRecorderProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
-        // while paused nothing is posted, so no block captured during a
-        // pause can reach the recorder after it resumes
         this.paused = false;
         this.port.onmessage = (event) => {
             if (event.data?.type === "pause") {
                 this.paused = true;
-                // after every block posted so far, telling the recorder
-                // that nothing from before the pause is still on its way
+                // ordered after every block posted so far
                 this.port.postMessage({ type: "paused" });
             } else if (event.data?.type === "resume") {
                 this.paused = false;

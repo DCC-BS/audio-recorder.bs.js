@@ -1,10 +1,6 @@
-/*
-    A session belongs to the recorder that records (or holds it paused) in
-    this page. Other tabs must neither resume it nor list it as interrupted,
-    so ownership is a Web Lock: it is released when the owner lets go, and
-    by the browser when the tab closes or crashes. Without the Locks API
-    (insecure contexts, very old browsers) every session counts as free.
-*/
+// A page owns the sessions it records or holds paused through a Web Lock,
+// released when it lets go or the tab dies. Without the Locks API every
+// session counts as free.
 
 const LOCK_PREFIX = "audio-recorder-session:";
 
@@ -13,13 +9,7 @@ function hasLocks(): boolean {
     return typeof navigator !== "undefined" && Boolean(navigator.locks);
 }
 
-/**
- * Takes ownership of a session.
- *
- * @param sessionId - The session to own.
- * @returns A function that releases the lock, or `undefined` when another
- *   page already owns the session.
- */
+/** @returns A release function, or `undefined` if another page owns it. */
 export async function acquireSessionLock(
     sessionId: string,
 ): Promise<(() => void) | undefined> {
@@ -43,11 +33,7 @@ export async function acquireSessionLock(
     });
 }
 
-/**
- * Lists the sessions some page currently owns.
- *
- * @returns The ids of sessions being recorded or held paused right now.
- */
+/** Ids of the sessions some page owns right now. */
 export async function getLiveSessionIds(): Promise<Set<string>> {
     if (!hasLocks()) {
         return new Set();

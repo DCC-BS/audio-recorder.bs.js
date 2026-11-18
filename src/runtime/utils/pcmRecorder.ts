@@ -6,15 +6,12 @@ export class PCMRecorder {
     private keepAwake: KeepAwake;
     private _onContextSuspended?: () => void;
     private _onInterrupted?: () => void;
-    /** Held paused with the devices kept open; see pause(). */
     private _paused = false;
     private _logger: (msg: string) => void;
     private _wasSuspended = false;
     private _boundHandleStateChange: () => void;
     private _boundHandleTrackMute: () => void;
-    /** The track feeding `source`; the stream may gain or lose others. */
     private readonly _inputTrack: MediaStreamTrack | undefined;
-    /** Settles once the worklet confirmed a pause, see {@link pause}. */
     private _pauseAcknowledged: Promise<void> = Promise.resolve();
     private _acknowledgePause: () => void = () => {};
 
@@ -40,9 +37,8 @@ export class PCMRecorder {
             this._boundHandleStateChange,
         );
 
-        // WebKit mutes the microphone track while a call or Siri takes the
-        // microphone away; only our own microphone is watched, a caller's
-        // stream may mute for reasons of its own
+        // WebKit mutes the mic during a call or Siri; a caller's stream may
+        // mute for its own reasons, so only our own mic is watched
         if (this.ownsStream) {
             for (const track of this.stream.getAudioTracks()) {
                 track.addEventListener("mute", this._boundHandleTrackMute);
@@ -74,11 +70,7 @@ export class PCMRecorder {
         this._onContextSuspended = callback;
     }
 
-    /**
-     * Called when the system takes the audio away (phone call, Siri):
-     * WebKit's `interrupted` context state or a muted microphone track.
-     * While set, an interrupted context is no longer resumed on its own.
-     */
+    /** Called when the system takes the audio away (call, Siri). */
     setOnInterrupted(callback: (() => void) | undefined): void {
         this._onInterrupted = callback;
     }
@@ -87,17 +79,12 @@ export class PCMRecorder {
         return this._wasSuspended;
     }
 
-    /**
-     * Whether the devices still deliver audio, i.e. a paused recorder can
-     * be resumed instead of replaced.
-     */
+    /** Whether the kept devices can be resumed instead of replaced. */
     get isHealthy(): boolean {
         const track = this._inputTrack;
         return (
             this.audioContext.state !== "closed" &&
             track !== undefined &&
-            // removed from the stream without being stopped: no longer the
-            // input the caller meant to record
             this.stream.getAudioTracks().includes(track) &&
             track.readyState === "live" &&
             !track.muted
@@ -113,13 +100,11 @@ export class PCMRecorder {
     }
 
     private handleStateChange(): void {
-        // paused on purpose: whatever happens to the context is sorted out
-        // on resume
         if (this._paused) {
             return;
         }
 
-        // WebKit-only state for a phone call, Siri and the like
+        // WebKit-only state
         if ((this.audioContext.state as string) === "interrupted") {
             this._logger("AudioContext was interrupted");
             if (this._onInterrupted) {
@@ -153,15 +138,10 @@ export class PCMRecorder {
         this.keepAwake.stop();
     }
 
-    /**
-     * Pauses while keeping the devices open, so resuming needs no new
-     * permission. Samples keep arriving; the caller drops them.
-     */
+    /** Pauses with the devices kept open, so resuming needs no prompt. */
     public pause(): void {
         this._paused = true;
-        // stop capturing in the audio thread itself. The worklet answers
-        // with "paused" after every block it posted before, so once the
-        // answer is in, no block captured before the pause is still queued
+        // the worklet answers "paused" after every block it posted before
         this._pauseAcknowledged = new Promise((resolve) => {
             this._acknowledgePause = resolve;
         });
@@ -169,15 +149,11 @@ export class PCMRecorder {
         this.keepAwake.stop();
     }
 
-    /**
-     * Resumes after {@link pause}.
-     */
     public async resume(): Promise<void> {
         if (this.audioContext.state !== "running") {
             await this.audioContext.resume();
         }
-        // blocks from before the pause must not land after the resume; a
-        // worklet that never answers must not block resuming forever
+        // no block from before the pause may land after the resume
         await Promise.race([
             this._pauseAcknowledged,
             new Promise((resolve) => setTimeout(resolve, PAUSE_ACK_TIMEOUT_MS)),
@@ -246,9 +222,7 @@ export async function startPcmRecorder(externalStream?: MediaStream) {
     const audioContext = new AudioContext();
 
     await audioContext.audioWorklet.addModule(PCMAudioWorkletUrl);
-    // a stream with several audio tracks feeds the source from whichever
-    // the browser picks; bind it to one explicitly so the recorder knows
-    // which input to watch
+    // bind the source to one known track, so isHealthy watches the right one
     const inputTrack = stream.getAudioTracks()[0];
     if (!inputTrack) {
         throw new Error("The stream has no audio track to record");

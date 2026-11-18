@@ -22,18 +22,13 @@ const optionsDefault: Required<AudioSessionOptions> = {
     logger: (_: string) => {},
 };
 
-/**
- * Lists the stored recordings no tab is recording right now: paused,
- * interrupted (crash, closed tab) and stopped ones. Newest first.
- */
+/** Stored recordings no tab is recording right now, newest first. */
 export async function getAbandonedRecording(): Promise<AudioSession[]> {
     const audioStorage = new AudioStorageService();
     return audioStorage.getResumableSessions();
 }
 
-/**
- * The paused recording waiting to be continued, if any.
- */
+/** The paused recording, if any. */
 export async function getPausedRecording(): Promise<AudioSession | undefined> {
     const audioStorage = new AudioStorageService();
     return audioStorage.getPausedSession();
@@ -46,7 +41,6 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
     const isReady = ref(false);
     const audioStorage = new AudioStorageService();
     const abandonedRecording = ref<AudioSession[] | undefined>(undefined);
-    /** The paused recording waiting to be continued, if any. */
     const pausedRecording = computed(() =>
         abandonedRecording.value
             ?.filter((s) => s.status === "paused")
@@ -68,9 +62,6 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         isReady.value = true;
     });
 
-    /**
-     * Reloads the stored recordings, e.g. after one was continued.
-     */
     async function refresh(): Promise<void> {
         abandonedRecording.value = await audioStorage.getResumableSessions();
     }
@@ -88,15 +79,7 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         return mp3Blob;
     }
 
-    /**
-     * Ends a stored recording without deleting it: it can no longer count
-     * as paused, but stays available as a backup until the usual cleanup.
-     * Use it once a paused recording was handed on, e.g. for processing.
-     *
-     * @param sessionId - The stored recording.
-     * @param expectedChunkCount - Its chunk count when it was handed on;
-     *   refuses if it grew since (continued in another tab).
-     */
+    /** Keeps a handed-on recording as a backup; see AudioStorageService.markAsStopped. */
     async function markAsStopped(
         sessionId: string,
         expectedChunkCount?: number,

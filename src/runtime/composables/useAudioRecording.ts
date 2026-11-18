@@ -13,20 +13,9 @@ import { acquireSessionLock } from "../utils/sessionLock";
 import { useFFmpeg } from "./useFFmpeg";
 
 /**
- * What a pause does with the devices.
- *
- * - `release`: stop the microphone, so the browser's recording indicator
- *   goes off. Resuming asks for the devices again, which may show a
- *   permission prompt.
- * - `keep`: keep the devices open and drop the audio while paused.
- *   Resuming is instant and never prompts.
- * - `auto` (default): `keep` on iOS, where permission prompts repeat, and
- *   for a supplied stream (re-asking for a screen share always shows the
- *   picker); `release` everywhere else.
- *
- * Either way everything recorded so far is stored on pause, so a paused
- * recording survives the page going away and can be resumed with
- * `resumeSession`.
+ * What a pause does with the devices: `release` closes them (resume may
+ * prompt again), `keep` keeps them open (resume is instant), `auto` keeps
+ * them on iOS and for `getStream`, releases them elsewhere.
  */
 export type PauseMode = "auto" | "release" | "keep";
 
@@ -136,16 +125,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     /** Between the start request and the first sample: devices, permission prompt, session. Also set while resuming. */
     const isStarting = ref(false);
     const isProcessing = ref(false);
-    /**
-     * Paused: everything recorded so far is stored, nothing is captured
-     * until `resumeRecording` (or `stopRecording` finishes it).
-     */
+    /** Paused; everything recorded so far is stored. */
     const isPaused = ref(false);
     /**
-     * Starting, recording or finishing: audio would be lost if the page went
-     * away now. Useful to guard navigation or to keep a dialog open. A
-     * paused recording is not busy once its pause is stored: it can be
-     * resumed later.
+     * Starting, recording, finishing or storing a pause: audio would be lost
+     * if the page went away now. A stored pause is not busy.
      */
     const isBusy = computed(
         () =>
@@ -155,17 +139,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             isSavingPause.value,
     );
     const wasSuspended = ref(false);
-    /**
-     * Paused, but the audio recorded up to the pause is still being
-     * encoded and stored. Until this clears, leaving the page loses the
-     * last seconds.
-     */
+    /** Paused, but the audio up to the pause is still being stored. */
     const isSavingPause = ref(false);
-    /**
-     * The current pause could not be stored completely: part of the audio
-     * or the paused status is missing, so it is not safe to leave. What was
-     * stored stays recoverable among the abandoned recordings.
-     */
+    /** The current pause could not be stored completely; leaving is not safe. */
     const pauseSaveFailed = ref(false);
     /** The current pause was caused by the system (a call, Siri), not the user. */
     const wasInterrupted = ref(false);
@@ -249,9 +225,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         opt.onError(message);
     }
 
-    /**
-     * Records into a new session.
-     */
     async function startRecording() {
         // a recording still starting, paused or being joined owns the
         // session and the buffers; a second start would record twice into
@@ -319,11 +292,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
-    /**
-     * Turns a failure to open the devices into a message.
-     *
-     * @param e - What was thrown.
-     */
     function deviceError(e: unknown): string {
         // getStream errors are the caller's (e.g. a cancelled screen
         // picker) and must not be reported as microphone problems
@@ -332,10 +300,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             : handleMicrophoneError(e as Error);
     }
 
-    /**
-     * @param resumeId - A stored session to continue instead of starting a
-     *   new one.
-     */
     async function start(resumeId?: string) {
         // a supplied stream need not involve a microphone at all
         if (!opt.getStream) {
@@ -357,10 +321,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         currentSession.value = undefined;
         // the session this start created, the only one it may delete
         let createdId: string | undefined;
-        // set once the resumed session was switched to recording, so a
-        // failure can put it back
+        // lets a failure put a resumed session back
         let resumedStatusChanged = false;
-        // failures while opening the devices get a device-specific message
         let openingDevices = false;
 
         try {
@@ -426,7 +388,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
             try {
                 if (resumeId) {
-                    // the stored recording stays as it was
                     if (resumedStatusChanged) {
                         await audioStorage.setSessionStatus(resumeId, "paused");
                     }
@@ -448,12 +409,6 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
-    /**
-     * Opens the devices and feeds their samples into the buffers.
-     *
-     * @returns The running recorder, also kept as `pcmRecorder`.
-     * @throws StartCancelled when the start was cancelled meanwhile.
-     */
     async function openRecorder(): Promise<PCMRecorder> {
         const externalStream = opt.getStream
             ? await opt.getStream()
@@ -504,17 +459,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         return recorder;
     }
 
-    /**
-     * Asks the browser not to evict stored recordings under storage
-     * pressure. Best effort: browsers may decline silently.
-     */
+    /** Best effort: asks the browser not to evict stored recordings. */
     function requestPersistentStorage(): void {
         navigator.storage?.persist?.().catch(() => {});
     }
 
-    /**
-     * Logs the storage used while recording, in development builds only.
-     */
     function logStorageUsage(): void {
         if (!import.meta.env.DEV || !navigator.storage?.estimate) {
             return;
@@ -590,21 +539,11 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             });
     }
 
-    /**
-     * Pauses the recording. Everything recorded so far is stored first, so
-     * the paused session survives the page going away and can be continued
-     * with `resumeSession`. What happens to the devices depends on
-     * `pauseMode`.
-     *
-     * Does nothing unless a recording is running.
-     */
+    /** Stores everything recorded so far, then pauses (see `pauseMode`). */
     function pauseRecording(): Promise<void> {
         return pause(false);
     }
 
-    /**
-     * @param interrupted - The system took the audio away (call, Siri).
-     */
     function pause(interrupted: boolean): Promise<void> {
         if (pendingPause) {
             return pendingPause;
@@ -644,8 +583,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         if (pauseMode === "release") {
             await releaseRecorder();
         } else {
-            // also after an interruption: resuming checks whether the
-            // devices recovered and opens fresh ones if not
+            // resume replaces the devices if they stopped working
             pcmRecorder?.pause();
         }
 
@@ -657,9 +595,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         const statusStored = await marked;
         isSavingPause.value = false;
 
-        // an earlier periodic chunk may have failed too. Without the paused
-        // status the session still shows up as interrupted after a reload,
-        // so what was stored stays recoverable either way
+        // without the paused status the session still shows up as
+        // interrupted, so what was stored stays recoverable
         if (chunkFailure || !statusStored) {
             pauseSaveFailed.value = true;
             fail(t("audio-recorder.audio.errors.pauseNotSaved"));
@@ -685,8 +622,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         isStarting.value = true;
         startCancelled = false;
         error.value = "";
-        // set once the session was switched back to recording, so a cancel
-        // or failure can put it back to paused
+        // lets a cancel or failure put the session back to paused
         let statusChanged = false;
         try {
             let resumed = false;
@@ -713,9 +649,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             // unmounted or stopped while the status was written
             ensureNotDisposed();
 
-            // an interruption during the steps above went unnoticed: the
-            // recorder was not recording yet. Replace devices that no
-            // longer deliver audio instead of resuming into silence
+            // an interruption during the awaits above went unnoticed
             if (!pcmRecorder?.isHealthy) {
                 await reopenRecorder();
                 ensureNotDisposed();
@@ -756,11 +690,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
-    /**
-     * Replaces the devices with freshly opened ones and announces them.
-     *
-     * @throws StartCancelled when the resume was cancelled meanwhile.
-     */
+    /** Opens fresh devices; throws if their input is already unusable. */
     async function reopenRecorder(): Promise<void> {
         await releaseRecorder();
         const recorder = await openRecorder();
@@ -865,9 +795,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             opt.onRecordingStopped(audioBlob.value, audioUrl.value);
             settled = true;
 
-            // delivered: the stored copy is no longer needed. Marked stopped
-            // first, so a failed delete leaves a backup rather than a
-            // recording that looks like it still waits to be continued
+            // marked stopped first, so a failed delete leaves a backup,
+            // not something that looks resumable
             const markedStopped = await audioStorage
                 .setSessionStatus(sessionId, "stopped")
                 .then(
@@ -876,8 +805,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
                 );
             await audioStorage.deleteSession(sessionId).catch((e) => {
                 console.error("Error deleting the delivered session:", e);
-                // the recording itself was delivered, so this is no error
-                // for the user; but the leftover may be offered to continue
+                // already delivered: log rather than report to the user
                 if (!markedStopped) {
                     opt.logger(
                         `The delivered session ${sessionId} could neither be deleted nor marked stopped and may be offered as resumable: ${e}`,
@@ -888,22 +816,16 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             fail((e as Error)?.message || "Recording could not be finished");
             throw e;
         } finally {
-            // a kept copy is a backup now, not a recording to continue
             if (!settled && sessionId) {
                 try {
                     await audioStorage.setSessionStatus(sessionId, "stopped");
-                } catch {
-                    // the copy is kept either way
-                }
+                } catch {}
             }
             releaseOwnership();
             isProcessing.value = false;
         }
     }
 
-    /**
-     * Closes the devices, if open. The session is left alone.
-     */
     async function releaseRecorder(): Promise<void> {
         document.removeEventListener(
             "visibilitychange",
@@ -923,9 +845,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
     }
 
-    /**
-     * Lets other pages see the current session as no longer recorded here.
-     */
+    /** Lets other pages resume the current session again. */
     function releaseOwnership(): void {
         releaseLock?.();
         releaseLock = undefined;

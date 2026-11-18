@@ -1,7 +1,4 @@
-/**
- * Whether this is an iPhone or iPad, where every browser is WebKit.
- * iPadOS reports itself as a Mac, so it is told apart by its touch screen.
- */
+/** iPhone or iPad; iPadOS reports a Mac, so it is told apart by touch. */
 export function isIOS(): boolean {
     if (typeof navigator === "undefined") {
         return false;
@@ -12,10 +9,7 @@ export function isIOS(): boolean {
     );
 }
 
-/**
- * Whether the app runs installed (home screen / standalone PWA) rather
- * than in a browser tab.
- */
+/** Running as an installed (standalone) PWA. */
 export function isStandalone(): boolean {
     if (typeof window === "undefined") {
         return false;

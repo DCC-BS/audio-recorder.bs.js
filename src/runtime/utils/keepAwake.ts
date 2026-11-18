@@ -26,8 +26,7 @@ export class KeepAwake {
         try {
             const generation = this.generation;
             const sentinel = await navigator.wakeLock.request("screen");
-            // stopped (or restarted) while the request was pending: this
-            // grant belongs to nobody and must not keep the screen on
+            // stopped or restarted meanwhile: release the orphaned grant
             if (!this.isActive || generation !== this.generation) {
                 sentinel.release().catch(() => {});
                 return;
