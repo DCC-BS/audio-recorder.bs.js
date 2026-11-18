@@ -34,6 +34,8 @@ test.describe("Recording an external stream", () => {
     test("records the stream and stores chunks while recording", async ({
         page,
     }) => {
+        // stopping first encodes every 1s chunk still queued (slow in CI)
+        test.setTimeout(90_000);
         await page.getByTestId("start").click();
         await expect(page.getByTestId("recording")).toHaveText("true");
 
@@ -49,7 +51,7 @@ test.describe("Recording an external stream", () => {
                 async () =>
                     Number(await page.getByTestId("size").textContent()),
                 {
-                    timeout: 15_000,
+                    timeout: 45_000,
                 },
             )
             .toBeGreaterThan(0);
