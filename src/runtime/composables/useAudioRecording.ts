@@ -481,7 +481,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     let appendQueue: Promise<void> = Promise.resolve();
     // the queue recovers from a failed chunk so later ones are still
     // stored; the failure is kept for stopRecording to report
-    let chunkFailure: unknown;
+    // a flag, not the reason: a rejection may carry none
+    let chunkFailed = false;
 
     /**
      * Encodes the buffered samples and stores them as the next chunk.
@@ -511,8 +512,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         const next = appendQueue.then(() =>
             storeChunk(data, sampleRate, duration, sessionId),
         );
-        appendQueue = next.catch((e) => {
-            chunkFailure ??= e;
+        appendQueue = next.catch(() => {
+            chunkFailed = true;
         });
         return next;
     }
@@ -590,14 +591,21 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         try {
             await stored;
         } catch {
-            // kept in chunkFailure, checked below
+            // recorded in chunkFailed, checked below
         }
         const statusStored = await marked;
         isSavingPause.value = false;
 
         // without the paused status the session still shows up as
         // interrupted, so what was stored stays recoverable
-        if (chunkFailure || !statusStored) {
+        if (chunkFailed || !statusStored) {
+            // incomplete audio must not pass as a saved pause after a reload;
+            // as an interrupted session it stays recoverable
+            if (chunkFailed && statusStored && sessionId) {
+                await audioStorage
+                    .setSessionStatus(sessionId, "recording")
+                    .catch(() => {});
+            }
             pauseSaveFailed.value = true;
             fail(t("audio-recorder.audio.errors.pauseNotSaved"));
             return;
@@ -759,7 +767,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
 
             // a gap in the middle must not pass as a complete recording;
             // what was stored stays recoverable
-            if (chunkFailure) {
+            if (chunkFailed) {
                 throw new Error(
                     "Part of the recording could not be stored; the rest is kept among the abandoned recordings",
                 );
@@ -859,7 +867,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         totalSamples = 0;
         elapsed = 0;
         recordingTime.value = 0;
-        chunkFailure = undefined;
+        chunkFailed = false;
         wasSuspended.value = false;
         wasInterrupted.value = false;
         isSavingPause.value = false;

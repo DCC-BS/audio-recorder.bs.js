@@ -556,6 +556,10 @@ describe("useAudioRecording review fixes", () => {
             "session-1",
             "stopped",
         );
+        // marked before the delete is attempted
+        expect(
+            storage.setSessionStatus.mock.invocationCallOrder.at(-1),
+        ).toBeLessThan(storage.deleteSession.mock.invocationCallOrder[0] ?? 0);
     });
 
     it("stays paused when the reopened input is already unusable", async () => {
@@ -599,6 +603,30 @@ describe("useAudioRecording review fixes", () => {
         expect(onError).not.toHaveBeenCalled();
         expect(logger).toHaveBeenCalledWith(
             expect.stringContaining("could neither be deleted nor marked"),
+        );
+    });
+
+    it("treats a chunk rejected without a reason as lost", async () => {
+        const first = fakeRecorder();
+        startPcmRecorder.mockResolvedValueOnce(first);
+        const onStore = vi.fn().mockRejectedValueOnce(undefined);
+        const onRecordingPaused = vi.fn();
+        const r = useAudioRecording({
+            pauseMode: "keep",
+            onStore,
+            onRecordingPaused,
+        });
+        await r.startRecording();
+        first.emit(1);
+
+        await r.pauseRecording();
+
+        expect(r.pauseSaveFailed.value).toBe(true);
+        expect(onRecordingPaused).not.toHaveBeenCalled();
+        // incomplete: left as interrupted, not as a saved pause
+        expect(storage.setSessionStatus).toHaveBeenLastCalledWith(
+            "session-1",
+            "recording",
         );
     });
 });

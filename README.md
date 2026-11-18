@@ -168,10 +168,10 @@ function onRecordingStopped(audioBlob, audioUrl) {
 
 What happens to the devices while paused depends on `pauseMode`:
 
-| Mode      | Devices while paused                               | Resume                                                                                                                                                                                          | Used by `auto`                                                                                                                   |
-| --------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `release` | Closed: the browser's recording indicator goes off | Opens the devices again, which may show a permission prompt                                                                                                                                     | Desktop and Android browsers                                                                                                     |
-| `keep`    | Kept open, the audio is dropped                    | Instant and without a prompt while the kept devices still work. Devices that stopped working (e.g. a screen share ended during the pause) are opened again, which can prompt or show the picker | iOS (WebKit repeats permission prompts), and any `getStream` recording (asking for a screen share again always shows the picker) |
+| Mode      | Devices while paused                                                                                 | Resume                                                                                                                                                                                          | Used by `auto`                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `release` | Closed: the browser's recording indicator goes off (a `getStream` stream stays the caller's to stop) | Opens the devices again, which may show a permission prompt                                                                                                                                     | Desktop and Android browsers                                                                                                     |
+| `keep`    | Kept open, the audio is dropped                                                                      | Instant and without a prompt while the kept devices still work. Devices that stopped working (e.g. a screen share ended during the pause) are opened again, which can prompt or show the picker | iOS (WebKit repeats permission prompts), and any `getStream` recording (asking for a screen share again always shows the picker) |
 
 A stored session that no page is recording is resumable with `resumeSession(sessionId)`: one paused earlier, or one cut off by a crash or a closed tab. New audio is appended to it and `recordingTime` continues from the stored duration. Which page records a session is tracked with the Web Locks API, so other tabs neither list it, resume it nor delete it. Without the Web Locks API (insecure contexts, very old browsers) there is no such coordination: another tab could list or resume a session that is still being recorded.
 
@@ -281,24 +281,24 @@ The main recording component with start/stop controls and audio visualization.
 
 The component exposes the following methods and reactive properties via template refs:
 
-| Property/Method          | Type                            | Description                                                                                                                    |
-| ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `isRecording`            | `Ref<boolean>`                  | Reactive boolean indicating if recording is in progress                                                                        |
-| `isStarting`             | `Ref<boolean>`                  | True while the recording starts (devices, permission prompt)                                                                   |
-| `isProcessing`           | `Ref<boolean>`                  | True while a stopped recording is being finished                                                                               |
-| `isBusy`                 | `ComputedRef<boolean>`          | Starting, recording or finishing: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open  |
-| `startRecording`         | `() => Promise<void>`           | Method to start audio recording                                                                                                |
-| `isPaused`               | `Ref<boolean>`                  | True while the recording is paused                                                                                             |
-| `isSavingPause`          | `Ref<boolean>`                  | True while a pause is still being stored                                                                                       |
-| `wasInterrupted`         | `Ref<boolean>`                  | The current pause was caused by the system (call, Siri)                                                                        |
-| `pauseRecording`         | `() => Promise<void>`           | Pauses and stores everything recorded so far                                                                                   |
-| `resumeRecording`        | `() => Promise<void>`           | Continues a paused recording                                                                                                   |
-| `resumeSession`          | `(id: string) => Promise<void>` | Continues a stored (paused or interrupted) session                                                                             |
-| `stopRecording`          | `() => Promise<void>`           | Stops the recording. Cancels a start still in progress, does nothing without a recording, and joins a stop already in progress |
-| `recordingTime`          | `Ref<number>`                   | Recording time in seconds                                                                                                      |
-| `formattedRecordingTime` | `ComputedRef<string>`           | Formatted recording time as "MM:SS"                                                                                            |
-| `error`                  | `Ref<string \| null>`           | Current error message, if any                                                                                                  |
-| `audioUrl`               | `Ref<string \| null>`           | URL of the recorded audio blob                                                                                                 |
+| Property/Method          | Type                            | Description                                                                                                                                    |
+| ------------------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isRecording`            | `Ref<boolean>`                  | Reactive boolean indicating if recording is in progress                                                                                        |
+| `isStarting`             | `Ref<boolean>`                  | True while the recording starts (devices, permission prompt)                                                                                   |
+| `isProcessing`           | `Ref<boolean>`                  | True while a stopped recording is being finished                                                                                               |
+| `isBusy`                 | `ComputedRef<boolean>`          | Starting, recording, finishing or storing a pause: audio would be lost if the page went away. Use it to guard navigation or keep a dialog open |
+| `startRecording`         | `() => Promise<void>`           | Method to start audio recording                                                                                                                |
+| `isPaused`               | `Ref<boolean>`                  | True while the recording is paused                                                                                                             |
+| `isSavingPause`          | `Ref<boolean>`                  | True while a pause is still being stored                                                                                                       |
+| `wasInterrupted`         | `Ref<boolean>`                  | The current pause was caused by the system (call, Siri)                                                                                        |
+| `pauseRecording`         | `() => Promise<void>`           | Pauses and stores everything recorded so far                                                                                                   |
+| `resumeRecording`        | `() => Promise<void>`           | Continues a paused recording                                                                                                                   |
+| `resumeSession`          | `(id: string) => Promise<void>` | Continues a stored (paused or interrupted) session                                                                                             |
+| `stopRecording`          | `() => Promise<void>`           | Stops the recording. Cancels a start still in progress, does nothing without a recording, and joins a stop already in progress                 |
+| `recordingTime`          | `Ref<number>`                   | Recording time in seconds                                                                                                                      |
+| `formattedRecordingTime` | `ComputedRef<string>`           | Formatted recording time as "MM:SS"                                                                                                            |
+| `error`                  | `Ref<string \| null>`           | Current error message, if any                                                                                                                  |
+| `audioUrl`               | `Ref<string \| null>`           | URL of the recorded audio blob                                                                                                                 |
 
 #### Usage with Template Ref
 
