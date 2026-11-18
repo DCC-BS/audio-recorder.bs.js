@@ -40,6 +40,16 @@ const db = new Dexie("AudioRecorderDB") as Dexie & {
     audioSessions: EntityTable<AudioSession, "id">;
 };
 
+/**
+ * Opens the database again after a failed open. Dexie otherwise rejects every
+ * later call with the first error, so a retry could never succeed.
+ */
+export async function reopenIfFailed(): Promise<void> {
+    if (db.hasFailed()) {
+        await db.open();
+    }
+}
+
 db.version(1).stores({
     audioBlobs: "id, sessionId, createdAt, name, size, type",
     audioSessions: "id, createdAt, chunkCount, totalSize",
