@@ -201,6 +201,9 @@ export function useAudioRecording(options: RecordingOptions = {}) {
     let startCancelled = false;
     // the stop in progress; a second stop joins it instead of finishing twice
     let pendingStop: Promise<void> | undefined;
+    // a starting resume of a stored session began writing its status; until
+    // then it has changed nothing and holds the lock only to open devices
+    let startWriting = false;
 
     onUnmounted(() => {
         disposed = true;
@@ -212,6 +215,12 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         // a stop in progress finishes and lets go of the session itself
         if (pendingStop) {
             return;
+        }
+
+        // still opening devices (a picker may stay open indefinitely): the
+        // start writes nothing once cancelled, so the session is free now
+        if (isStarting.value && !startWriting) {
+            releaseOwnership();
         }
 
         const sessionId = currentSession.value;
@@ -292,6 +301,7 @@ export function useAudioRecording(options: RecordingOptions = {}) {
         }
         isStarting.value = true;
         startCancelled = false;
+        startWriting = false;
         try {
             await start(resumeId);
         } finally {
@@ -379,6 +389,8 @@ export function useAudioRecording(options: RecordingOptions = {}) {
             }
 
             if (resumeId) {
+                ensureNotDisposed();
+                startWriting = true;
                 await audioStorage.setSessionStatus(resumeId, "recording");
                 resumedStatusChanged = true;
             } else {

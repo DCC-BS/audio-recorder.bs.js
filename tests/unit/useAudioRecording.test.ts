@@ -873,4 +873,29 @@ describe("useAudioRecording review fixes", () => {
 
         expect(releaseLock).toHaveBeenCalled();
     });
+
+    it("lets go of a stored session on unmount while its devices are pending", async () => {
+        storage.getSession.mockResolvedValueOnce({
+            id: "stored",
+            status: "paused",
+        } as never);
+        startPcmRecorder.mockImplementationOnce(() => new Promise(() => {}));
+        let r!: ReturnType<typeof useAudioRecording>;
+        const app = createApp(
+            defineComponent({
+                setup() {
+                    r = useAudioRecording();
+                    return () => null;
+                },
+            }),
+        );
+        app.mount(document.createElement("div"));
+        void r.resumeSession("stored");
+        await vi.waitFor(() => expect(startPcmRecorder).toHaveBeenCalled());
+
+        app.unmount();
+
+        expect(releaseLock).toHaveBeenCalled();
+        expect(storage.setSessionStatus).not.toHaveBeenCalled();
+    });
 });
