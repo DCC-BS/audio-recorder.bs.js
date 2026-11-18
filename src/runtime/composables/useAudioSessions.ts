@@ -100,7 +100,10 @@ export function useAudioSessions(options: AudioSessionOptions = {}) {
         expectedChunkCount?: number,
     ): Promise<void> {
         await audioStorage.markAsStopped(sessionId, expectedChunkCount);
-        await refresh();
+        // the stop is done; a stale list is no reason to report it failed
+        await refresh().catch((e) => {
+            opt.logger(`Refreshing the stored recordings failed: ${e}`);
+        });
     }
 
     /** See AudioStorageService.deleteStoredSession. */
